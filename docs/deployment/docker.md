@@ -17,7 +17,7 @@ Lithos is now running at `http://localhost:8765/sse`.
 ```yaml
 services:
   lithos:
-    image: ghcr.io/agent-lore/lithos:latest
+    image: davesnowdon/lithos:latest
     restart: unless-stopped
     ports:
       - "8765:8765"
