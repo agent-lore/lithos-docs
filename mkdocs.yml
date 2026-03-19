@@ -1,0 +1,140 @@
+site_name: Lithos
+site_url: https://getlithos.dev
+site_description: Shared memory for AI agents — a local, privacy-first knowledge base with MCP interface.
+site_author: agent-lore
+
+repo_url: https://github.com/agent-lore/lithos
+repo_name: agent-lore/lithos
+
+docs_dir: docs
+theme:
+  name: material
+  custom_dir: overrides
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: deep purple
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - navigation.instant
+    - navigation.instant.progress
+    - search.highlight
+    - search.suggest
+    - search.share
+    - content.tabs.link
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      repo_url_shorthand: true
+      user: agent-lore
+      repo: lithos
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/agent-lore/lithos
+      name: Lithos on GitHub
+  version:
+    provider: mike
+
+extra_css:
+  - assets/extra.css
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - getting-started/index.md
+    - Installation: getting-started/installation.md
+    - Quickstart: getting-started/quickstart.md
+    - Configuration: getting-started/configuration.md
+  - Concepts:
+    - concepts/index.md
+    - Overview: concepts/overview.md
+    - Architecture: concepts/architecture.md
+    - Memory Model: concepts/memory-model.md
+  - MCP Tools:
+    - mcp-tools/index.md
+    - lithos_write: mcp-tools/lithos_write.md
+    - lithos_read: mcp-tools/lithos_read.md
+    - lithos_search: mcp-tools/lithos_search.md
+    - lithos_list: mcp-tools/lithos_list.md
+    - lithos_delete: mcp-tools/lithos_delete.md
+    - lithos_health: mcp-tools/lithos_health.md
+    - lithos_agent_register: mcp-tools/lithos_agent_register.md
+    - lithos_task_status: mcp-tools/lithos_task_status.md
+    - Graph Tools: mcp-tools/graph-tools.md
+    - Coordination Tools: mcp-tools/coordination-tools.md
+  - CLI Reference: cli.md
+  - Deployment:
+    - deployment/index.md
+    - Docker: deployment/docker.md
+    - Self-Hosted: deployment/self-hosted.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md
