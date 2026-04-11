@@ -33,7 +33,7 @@ GET /health
     "graph": "ok",
     "coordination": "ok"
   },
-  "version": "0.1.6"
+  "version": "0.1.8"
 }
 ```
 
@@ -48,7 +48,7 @@ When degraded:
     "graph": "ok",
     "coordination": "ok"
   },
-  "version": "0.1.6"
+  "version": "0.1.8"
 }
 ```
 

@@ -10,7 +10,7 @@ Lithos exposes **24 MCP tools** across five categories. All tools are available 
     |------|-------------|
     | [`lithos_write`](lithos_write.md) | Create or update a knowledge item |
     | [`lithos_read`](lithos_read.md) | Read a knowledge item by ID or path |
-    | [`lithos_search`](lithos_search.md) | Full-text, semantic, or hybrid search |
+    | [`lithos_search`](lithos_search.md) | Full-text, semantic, hybrid, or graph traversal search |
     | [`lithos_list`](lithos_list.md) | List items with filters |
     | [`lithos_delete`](lithos_delete.md) | Delete a knowledge item |
     | `lithos_cache_lookup` | Check for a cached answer before researching |
@@ -57,7 +57,7 @@ Lithos exposes **24 MCP tools** across five categories. All tools are available 
 
     | Tool | Description |
     |------|-------------|
-    | `lithos_stats` | Knowledge base statistics |
+    | `lithos_stats` | Knowledge base statistics and health indicators |
 
 ---
 
@@ -69,8 +69,11 @@ In addition to MCP tools, Lithos exposes HTTP endpoints for infrastructure use:
 |----------|-------------|
 | `GET /health` | Server health check — returns `200 OK` or `503`. Use with Docker `HEALTHCHECK` and load balancers. |
 | `GET /events` | Server-Sent Events stream for real-time event delivery. |
+| `GET /metrics` | Prometheus-compatible metrics (added v0.1.8). |
 
 → [Health Endpoint Reference](lithos_health.md)
+
+→ [Observability Reference](../deployment/observability.md)
 
 ---
 

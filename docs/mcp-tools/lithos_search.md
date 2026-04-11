@@ -1,6 +1,6 @@
 # lithos_search
 
-Search the knowledge base using full-text, semantic, or hybrid (default) mode.
+Search the knowledge base using full-text, semantic, hybrid (default), or graph traversal mode.
 
 <div class="tool-sig">lithos_search(query, [mode], [limit], [tags], [author], [path_prefix])</div>
 
@@ -10,8 +10,8 @@ Search the knowledge base using full-text, semantic, or hybrid (default) mode.
 
 | Name | Type | Required | Description |
 |------|------|:--------:|-------------|
-| `query` | string | ✅ | Search query |
-| `mode` | string | — | `"hybrid"` (default), `"fulltext"`, or `"semantic"` |
+| `query` | string | ✅ | Search query (or document ID / slug when using `mode="graph"`) |
+| `mode` | string | — | `"hybrid"` (default), `"fulltext"`, `"semantic"`, or `"graph"` |
 | `limit` | int | — | Max results (default: `10`, max: `50`) |
 | `tags` | string[] | — | Filter results to documents with **all** of these tags |
 | `author` | string | — | Filter results to documents by this author |
@@ -51,7 +51,7 @@ Search the knowledge base using full-text, semantic, or hybrid (default) mode.
 {
   "status": "error",
   "code": "invalid_mode",
-  "message": "Unknown search mode 'fuzzzy'. Valid modes: hybrid, fulltext, semantic"
+  "message": "Unknown search mode 'fuzzzy'. Valid modes: hybrid, fulltext, semantic, graph"
 }
 ```
 
@@ -104,6 +104,49 @@ results = lithos_search(
     mode="semantic"
 )
 ```
+
+### `graph` — Traverse wiki-link relationships
+
+Added in **v0.1.8**. Traverses the knowledge graph starting from the document identified by `query` (a document ID, UUID, or slug). Returns documents reachable via wiki-link (`[[note]]`) relationships rather than text or vector similarity.
+
+Best for:
+- "What does this document link to?"
+- "What's related to this topic via explicit links?"
+- Navigating curated relationship chains
+
+```python
+# Start from a document slug or ID
+results = lithos_search(
+    query="python-asyncio-gather-patterns",
+    mode="graph"
+)
+
+# Or use a UUID
+results = lithos_search(
+    query="f47ac10b-58cc-4372-a567-0e02b2c3d479",
+    mode="graph",
+    limit=20
+)
+```
+
+Graph results include a `depth` field indicating how many hops from the starting document:
+
+```json
+{
+  "results": [
+    {
+      "id": "...",
+      "title": "Python event loop internals",
+      "depth": 1,
+      "score": 1.0,
+      "path": "python-event-loop-internals.md"
+    }
+  ]
+}
+```
+
+!!! tip
+    Combine graph traversal with hybrid search: use `lithos_search(mode="hybrid")` to find a high-confidence starting point, then `lithos_search(mode="graph")` with that document's ID to explore its neighbourhood.
 
 ---
 
@@ -174,5 +217,6 @@ else:
 
 - **Hybrid mode** is the default and recommended mode for most queries. It handles both keyword and conceptual queries well.
 - **Semantic search** operates on 500-character chunks internally, then deduplicates to document level before returning results. The `snippet` field shows the best-matching chunk.
+- **Graph mode** (`mode="graph"`) uses the `query` parameter as a document identifier, not a text query. Pass a document slug, UUID, or path. Tags and `path_prefix` filters are not applied in graph mode.
 - Tags filtering is **AND** — specifying `tags=["python", "asyncio"]` returns only documents tagged with *both*.
 - `is_stale` is a soft signal. Stale documents are still returned and may still be correct — the `expires_at` was the author's estimate of freshness, not a hard deletion trigger.

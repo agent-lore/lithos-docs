@@ -113,7 +113,7 @@ docker compose up -d
 
 ## Health Check
 
-The Docker image includes a health check that polls the HTTP health endpoint:
+The Docker image includes a health check that polls the HTTP `/health` endpoint (fixed in v0.1.8 — previously used a TCP-only probe):
 
 ```bash
 docker compose ps  # shows health status
@@ -123,6 +123,7 @@ Or query directly:
 
 ```bash
 curl http://localhost:8765/health
+# Returns 200 OK when healthy, 503 when degraded
 ```
 
 ## Upgrade
