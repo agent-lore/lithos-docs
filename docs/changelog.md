@@ -4,6 +4,49 @@ All notable changes to Lithos are documented here. The full changelog is maintai
 
 ---
 
+## v0.1.8
+
+!!! note "v0.1.7 skipped"
+    v0.1.7 was skipped due to a tag issue. This release covers all changes between v0.1.6 and v0.1.8.
+
+### Added
+
+- **`lithos_search` now supports `mode="graph"` (PR #146):** Traverse the knowledge graph from a starting document and return linked results. Returns documents reachable by wiki-link relationships rather than text/vector similarity. See [`lithos_search`](mcp-tools/lithos_search.md) for details.
+
+- **`lithos_stats` extended with health indicators (PR #159):** The stats response now includes a `health` block with pass/warn/fail indicators for each subsystem (index, embedding, coordination). Surfaces the same signal as `GET /health` but in machine-readable per-subsystem form.
+
+- **Observability — OTEL tracing (PRs #148, #151):** OpenTelemetry tracing added to all untraced code paths. An OTEL log bridge enables trace-log correlation — structured log entries now carry `trace_id` and `span_id` fields.
+
+- **Observability — metrics (PRs #87, #89, #96, #97, #99, #101, #149, #150, #155, #156, #157):** Prometheus-compatible metrics exposed across the server:
+    - `lithos.knowledge.write_duration_ms` histogram — write latency distribution
+    - Resource gauge metrics (documents, chunks, agents, open tasks)
+    - Startup duration and file watcher event counters
+    - Event bus subscriber drop and buffer utilisation gauges
+    - Per-tool call counters and per-tool error counters
+    - SSE active clients gauge and events-delivered counter
+
+- **Always-on structured JSON logging (PRs #140, #152, #153):** All log output is now structured JSON (when `LITHOS_LOG_LEVEL` is set to any level). DEBUG traces added for link resolution and slug computation. Coordination and knowledge modules emit structured events for observability pipelines (Loki, CloudWatch, etc.).
+
+- **Read audit logging (PR #147):** `lithos_read` calls are now written to an audit log (append-only `read_audit.jsonl`). Each entry records `timestamp`, `document_id`, `agent`, and `path`. Useful for compliance and debugging access patterns.
+
+### Fixed
+
+- **Preserve incoming edges on document update (PR #139):** Previously, updating a document that other documents linked *to* would silently drop those incoming wiki-link edges from the graph. They are now preserved correctly.
+
+- **Docker healthcheck uses HTTP `/health` (PR #143, closes #72, #77):** The default `docker-compose.yml` healthcheck now calls `GET /health` instead of using a TCP probe. This gives accurate health signals to Compose, Swarm, and Kubernetes.
+
+- **Recover from corrupt ChromaDB stores (PR #160):** If the embedding store is detected as corrupt on startup, Lithos now logs a clear error and attempts an automatic rebuild rather than crashing. Contributed by @peterbrown05 (first contribution 🎉).
+
+- **ChromaDB metadata types (PR #145, closes #42):** Fixed a type error where ChromaDB's `metadatas` list was incorrectly typed, causing failures on some document writes.
+
+### Refactored
+
+- **`KnowledgeManager` now requires explicit config (PR #158, closes #35):** `KnowledgeManager` no longer accepts implicit defaults. All callers must pass a `LithosConfig` instance. This only affects users embedding `lithos` as a Python library — the CLI and MCP server are unaffected.
+
+- **`embed_async()` dead code removed (PR #144, closes #74):** The unused async embedding path was removed to simplify the codebase.
+
+---
+
 ## v0.1.6
 
 ### Fixed
