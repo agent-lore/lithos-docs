@@ -1,40 +1,85 @@
 # Graph Tools
 
-Tools for navigating the knowledge graph built from wiki-links and provenance relationships.
+Tools for navigating the knowledge graph built from wiki-links, provenance relationships, and LCMA typed edges.
 
 ---
 
-## lithos_links
+## lithos_related
 
-Get the wiki-link relationships for a knowledge item.
+The primary graph-query tool. Merges wiki-links, provenance chains, and LCMA typed edges into a single response.
 
-<div class="tool-sig">lithos_links(id, [direction], [depth])</div>
+<div class="tool-sig">lithos_related(id, [include], [depth], [namespace])</div>
 
 ### Parameters
 
 | Name | Type | Required | Description |
 |------|------|:--------:|-------------|
 | `id` | string | ✅ | UUID of the knowledge item |
-| `direction` | string | — | `"outgoing"` (default), `"incoming"`, or `"both"` |
-| `depth` | int | — | Traversal depth 1–3 (default: `1`) |
+| `include` | string[] | — | Which backends to query: `"links"`, `"provenance"`, `"edges"` (default: all three) |
+| `depth` | int | — | Traversal depth 1–3 (default: `1`); applies to `links` and `provenance` sections |
+| `namespace` | string | — | Scope `edges` results to this namespace only (links/provenance ignore this) |
 
 ### Returns
 
 ```json
 {
-  "outgoing": [
-    { "id": "uuid-b", "title": "Python event loop internals" },
-    { "id": "uuid-c", "title": "Concurrency patterns" }
-  ],
-  "incoming": [
-    { "id": "uuid-d", "title": "Comprehensive async Python guide" }
-  ]
+  "id": "doc-uuid",
+  "included": ["links", "provenance", "edges"],
+  "links": {
+    "outgoing": [
+      { "id": "uuid-b", "title": "Python event loop internals" }
+    ],
+    "incoming": [
+      { "id": "uuid-d", "title": "Comprehensive async Python guide" }
+    ]
+  },
+  "provenance": {
+    "sources": [
+      { "id": "source-a-uuid", "title": "asyncio.gather patterns" }
+    ],
+    "derived": [],
+    "unresolved_sources": []
+  },
+  "edges": {
+    "outgoing": [
+      { "from_id": "doc-uuid", "to_id": "uuid-b", "type": "supports", "namespace": "default" }
+    ],
+    "incoming": []
+  },
+  "related_ids": ["uuid-b", "uuid-d", "source-a-uuid"]
 }
 ```
 
+Sections not in `include` are **omitted entirely** (not emitted as empty objects). `related_ids` is the deduplicated union of all referenced document IDs across all included sections, excluding the queried document's own ID.
+
+### Migration from `lithos_links` / `lithos_provenance`
+
+!!! warning "lithos_links and lithos_provenance removed in v0.2.1"
+    `lithos_links` and `lithos_provenance` were removed in v0.2.1. Use `lithos_related` instead:
+
+    ```python
+    # Before (lithos_links)
+    links = lithos_links(id="doc-uuid", direction="both", depth=2)
+
+    # After
+    related = lithos_related(id="doc-uuid", include=["links"], depth=2)
+    links = related["links"]  # same outgoing/incoming structure
+    ```
+
+    ```python
+    # Before (lithos_provenance)
+    prov = lithos_provenance(id="doc-uuid", direction="both")
+
+    # After
+    related = lithos_related(id="doc-uuid", include=["provenance"])
+    prov = related["provenance"]  # sources, derived, unresolved_sources
+    ```
+
+    Note: the `include_unresolved` parameter from `lithos_provenance` is dropped — unresolved sources always surface in the composite response.
+
 ### Multi-hop traversal
 
-At `depth > 1`, results include all reachable nodes within N hops, deduplicated. For example, with `depth=2`:
+`depth` controls traversal depth for the `links` and `provenance` sections (1–3). For example, with `depth=2`:
 
 ```
 A → B → C
@@ -44,18 +89,85 @@ depth=1 outgoing from A: [B, D]
 depth=2 outgoing from A: [B, C, D]
 ```
 
-### Example
+### Examples
 
 ```python
-# What does this document link to?
-links = lithos_links(id="uuid-of-asyncio-note", direction="outgoing")
+# Everything related to a document
+related = lithos_related(id="doc-uuid")
 
-# What documents reference this one?
-links = lithos_links(id="uuid-of-asyncio-note", direction="incoming")
+# Just wiki-links, 2 hops
+related = lithos_related(id="doc-uuid", include=["links"], depth=2)
 
-# Both, 2 hops
-links = lithos_links(id="uuid-of-asyncio-note", direction="both", depth=2)
+# Just provenance chain
+related = lithos_related(id="doc-uuid", include=["provenance"])
+
+# Typed edges in a specific namespace
+related = lithos_related(id="doc-uuid", include=["edges"], namespace="research")
+
+# Walk the full graph neighbourhood
+for related_id in related["related_ids"]:
+    neighbour = lithos_read(id=related_id)
 ```
+
+### Returns (error)
+
+```json
+{
+  "status": "error",
+  "code": "doc_not_found",
+  "message": "No document found with id 'unknown-uuid'"
+}
+```
+
+---
+
+## lithos_edge_list
+
+Query typed LCMA edges globally (not anchored to a single document). Use this when you need cross-collection edge queries that `lithos_related` can't express.
+
+<div class="tool-sig">lithos_edge_list([from_id], [to_id], [type], [namespace])</div>
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|:--------:|-------------|
+| `from_id` | string | — | Filter edges by source document ID |
+| `to_id` | string | — | Filter edges by target document ID |
+| `type` | string | — | Filter by edge type (e.g. `"supports"`, `"contradicts"`, `"derived_from"`) |
+| `namespace` | string | — | Filter by namespace |
+
+### Returns
+
+```json
+{
+  "edges": [
+    {
+      "from_id": "uuid-a",
+      "to_id": "uuid-b",
+      "type": "supports",
+      "namespace": "default",
+      "created_at": "2026-04-18T10:00:00Z"
+    }
+  ]
+}
+```
+
+### Examples
+
+```python
+# All edges of type "contradicts" across the entire knowledge base
+edges = lithos_edge_list(type="contradicts")
+
+# All edges in a namespace (for an audit/review pass)
+edges = lithos_edge_list(namespace="research-sprint-4")
+
+# Outgoing edges from a specific document
+edges = lithos_edge_list(from_id="doc-uuid")
+```
+
+!!! tip "lithos_related vs lithos_edge_list"
+    Use `lithos_related` when you have a **specific document** and want to see all its relationships at once.
+    Use `lithos_edge_list` when you need **global queries** across all edges (e.g. "find all `contradicts` edges", "audit an entire namespace").
 
 ---
 
@@ -98,84 +210,20 @@ for name, count in sorted_tags[:10]:
 
 ---
 
-## lithos_provenance
-
-Traverse the provenance (derived-from) lineage graph for a knowledge item.
-
-<div class="tool-sig">lithos_provenance(id, [direction], [depth], [include_unresolved])</div>
-
-### Parameters
-
-| Name | Type | Required | Description |
-|------|------|:--------:|-------------|
-| `id` | string | ✅ | UUID of the knowledge item |
-| `direction` | string | — | `"sources"` (what this was derived from), `"derived"` (what was derived from this), or `"both"` (default) |
-| `depth` | int | — | Traversal depth 1–3 (default: `1`) |
-| `include_unresolved` | bool | — | Include source IDs that don't resolve to existing documents (default: `true`) |
-
-### Returns
-
-```json
-{
-  "id": "synthesis-uuid",
-  "sources": [
-    { "id": "source-a-uuid", "title": "asyncio.gather patterns" },
-    { "id": "source-b-uuid", "title": "asyncio event loop internals" }
-  ],
-  "derived": [
-    { "id": "derivative-uuid", "title": "Production async Python cookbook" }
-  ],
-  "unresolved_sources": []
-}
-```
-
-`unresolved_sources` contains source UUIDs from `derived_from_ids` that no longer have a corresponding document (e.g., the source was deleted).
-
-### Returns (error)
-
-```json
-{
-  "status": "error",
-  "code": "doc_not_found",
-  "message": "No document found with id 'unknown-uuid'"
-}
-```
-
-### Example
-
-```python
-# Trace where a synthesis document came from
-prov = lithos_provenance(
-    id="synthesis-uuid",
-    direction="sources",
-    depth=2  # follow chains: synthesis → source → source's sources
-)
-
-print(f"Direct sources: {len(prov['sources'])}")
-if prov["unresolved_sources"]:
-    print(f"⚠️  {len(prov['unresolved_sources'])} source(s) have been deleted")
-
-# Check what documents were derived from a key research note
-prov = lithos_provenance(
-    id="foundational-research-uuid",
-    direction="derived"
-)
-print(f"Documents built on this research: {[d['title'] for d in prov['derived']]}")
-```
-
----
-
 ## The Knowledge Graph
 
-Lithos maintains two overlapping graphs:
+Lithos maintains overlapping graph structures:
 
 | Graph | Built from | Query tool |
 |-------|-----------|-----------|
-| Wiki-link graph | `[[note-title]]` in Markdown body | `lithos_links` |
-| Provenance graph | `derived_from_ids` in frontmatter | `lithos_provenance` |
+| Wiki-link graph | `[[note-title]]` in Markdown body | `lithos_related` (include=["links"]) |
+| Provenance graph | `derived_from_ids` in frontmatter | `lithos_related` (include=["provenance"]) |
+| LCMA edge graph | `lithos_edge_upsert` | `lithos_related` (include=["edges"]) / `lithos_edge_list` |
 
 **Wiki-links** represent semantic relationships — "this note mentions or relies on that note."
 
 **Provenance** represents synthesis — "this note was created by combining those notes."
 
-Both graphs are directed, stored in NetworkX, and rebuilt from Markdown files if needed. Traversal uses BFS with cycle detection.
+**LCMA edges** are typed, namespaced relationships managed by the Layered Cognitive Memory Architecture pipeline.
+
+All graph structures are queryable via `lithos_related` for per-document neighbourhood traversal, or `lithos_edge_list` for global edge queries.

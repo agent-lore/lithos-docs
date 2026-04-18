@@ -1,10 +1,10 @@
 # MCP Tools Reference
 
-Lithos exposes **24 MCP tools** across five categories. All tools are available via both SSE and stdio transports.
+Lithos exposes **26 MCP tools** across five categories. All tools are available via both SSE and stdio transports.
 
 ## Tool Categories
 
-=== "Knowledge (6)"
+=== "Knowledge (7)"
 
     | Tool | Description |
     |------|-------------|
@@ -14,14 +14,16 @@ Lithos exposes **24 MCP tools** across five categories. All tools are available 
     | [`lithos_list`](lithos_list.md) | List items with filters |
     | [`lithos_delete`](lithos_delete.md) | Delete a knowledge item |
     | `lithos_cache_lookup` | Check for a cached answer before researching |
+    | `lithos_retrieve` | LCMA cognitive retrieval (multi-scout, reranked, with audit receipts) |
 
-=== "Graph (3)"
+=== "Graph (4)"
 
     | Tool | Description |
     |------|-------------|
-    | `lithos_links` | Get wiki-link relationships for a document |
+    | `lithos_related` | Composite graph tool — wiki-links, provenance, and LCMA edges in one call |
     | `lithos_tags` | List all tags with document counts |
-    | `lithos_provenance` | Traverse derived-from lineage |
+    | `lithos_edge_upsert` | Create or update a typed LCMA edge |
+    | `lithos_edge_list` | Query LCMA edges by filters (global edge queries) |
 
     → [Graph Tools Reference](graph-tools.md)
 

@@ -124,6 +124,7 @@ nav:
     - lithos_write: mcp-tools/lithos_write.md
     - lithos_read: mcp-tools/lithos_read.md
     - lithos_search: mcp-tools/lithos_search.md
+    - lithos_retrieve: mcp-tools/lithos_retrieve.md
     - lithos_list: mcp-tools/lithos_list.md
     - lithos_delete: mcp-tools/lithos_delete.md
     - Health Endpoint: mcp-tools/lithos_health.md
