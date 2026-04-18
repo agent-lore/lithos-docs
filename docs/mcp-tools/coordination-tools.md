@@ -204,8 +204,19 @@ Mark a task as completed. This also releases all active claims on the task.
 |------|------|:--------:|-------------|
 | `task_id` | string | ✅ | Task ID |
 | `agent` | string | ✅ | Agent marking completion |
+| `outcome` | string | — | Optional outcome summary. Persisted on the task row and forwarded in the `task.completed` event for LCMA consolidation. |
 
 **Returns:** `{ "success": true }` or `{ "status": "error", "code": "task_not_found" }`
+
+**Example:**
+
+```python
+lithos_task_complete(
+    task_id="task-abc123",
+    agent="research-agent",
+    outcome="Found 3 viable rate-limiting strategies; documented in knowledge base."
+)
+```
 
 ---
 

@@ -1,6 +1,6 @@
 # Observability
 
-Lithos v0.1.8 introduces comprehensive observability: structured JSON logging, OpenTelemetry tracing, Prometheus metrics, and read audit logging.
+Lithos v0.1.8 introduced comprehensive observability: structured JSON logging, OpenTelemetry tracing, Prometheus metrics, and read audit logging. v0.2.1 extends this with full LCMA pipeline metrics coverage and the `--telemetry-console` developer shortcut.
 
 ---
 
@@ -50,11 +50,20 @@ services:
 
 ## OpenTelemetry Tracing
 
-Lithos emits OTEL spans for all MCP tool calls. To enable export to an OTEL collector:
+Lithos uses a **push-only OTEL model**: all telemetry (traces, metrics, logs) is exported via OTLP to an external collector. There is no `/metrics` scrape endpoint — metrics flow through the OTLP pipeline to your collector (e.g. OpenTelemetry Collector → Prometheus remote-write).
+
+To enable export to an OTEL collector:
 
 ```bash
 OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
 OTEL_SERVICE_NAME=lithos
+```
+
+Per-signal overrides are supported:
+
+```bash
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://tempo:4318
+OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://otel-collector:4318
 ```
 
 Or in Docker:
@@ -70,22 +79,33 @@ services:
 ```
 
 Spans are created for:
-- Each MCP tool call (e.g., `lithos_write`, `lithos_search`)
+- Each MCP tool call (e.g., `lithos_write`, `lithos_search`, `lithos_retrieve`)
+- LCMA pipeline stages (scouts, rerank, consolidation)
 - Embedding operations
 - Index writes and queries
 - Graph traversal
 
+### Developer shortcut: `--telemetry-console`
+
+For local debugging without a collector, use the `--telemetry-console` flag to stream spans and metrics to stdout:
+
+```bash
+lithos serve --transport sse --port 8765 --telemetry-console
+```
+
+This enables in-process OTEL console exporters — no `OTEL_EXPORTER_OTLP_ENDPOINT` required.
+
 !!! tip "Grafana stack"
-    If you run Grafana + Tempo + Loki + Prometheus, Lithos integrates with the full stack out of the box:
+    If you run Grafana + Tempo + Loki + Prometheus, Lithos integrates with the full stack via the OTLP push path:
     - Traces → Tempo via OTLP
     - Logs → Loki (structured JSON, with trace correlation)
-    - Metrics → Prometheus scrape endpoint
+    - Metrics → OpenTelemetry Collector → Prometheus remote-write (or direct OTLP receiver)
 
 ---
 
-## Prometheus Metrics
+## Metrics
 
-Lithos exposes a Prometheus scrape endpoint at `GET /metrics` (added in v0.1.8).
+Lithos emits Prometheus-compatible metrics via **OTLP push** — metrics are exported to your OTEL collector, which forwards them to Prometheus (or another metrics backend). There is no direct `/metrics` scrape endpoint.
 
 ### Available Metrics
 
@@ -104,21 +124,36 @@ Lithos exposes a Prometheus scrape endpoint at `GET /metrics` (added in v0.1.8).
 | `lithos_tool_errors_total` | Counter | MCP tool errors (labelled by tool name) |
 | `lithos_sse_active_clients` | Gauge | Currently connected SSE clients |
 | `lithos_sse_events_delivered_total` | Counter | Total SSE events delivered |
+| `lithos_lcma_retrieve_duration_ms` | Histogram | LCMA `lithos_retrieve` end-to-end latency |
+| `lithos_lcma_scout_hits_total` | Counter | LCMA scout results (labelled by scout type) |
+| `lithos_lcma_rerank_duration_ms` | Histogram | LCMA rerank stage latency |
 
-### Prometheus Scrape Config
+### Collector → Prometheus setup
 
 ```yaml
-# prometheus.yml
-scrape_configs:
-  - job_name: lithos
-    static_configs:
-      - targets: ["localhost:8765"]
-    metrics_path: /metrics
+# otel-collector-config.yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  prometheusremotewrite:
+    endpoint: http://prometheus:9090/api/v1/write
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheusremotewrite]
 ```
 
 ### Grafana Dashboard
 
-Example PromQL queries for a Grafana dashboard:
+Example PromQL queries once metrics are flowing via OTLP:
 
 ```promql
 # Write latency P99
@@ -135,6 +170,9 @@ lithos_sse_active_clients
 
 # Event bus health (drops indicate slow subscribers)
 rate(lithos_event_bus_subscriber_drops_total[5m])
+
+# LCMA retrieve latency P95
+histogram_quantile(0.95, sum(rate(lithos_lcma_retrieve_duration_ms_bucket[5m])) by (le))
 ```
 
 ---

@@ -65,14 +65,21 @@
     lithos serve --transport sse --port 8765
     ```
 
+    !!! tip "Local dev with telemetry"
+        Use `--telemetry-console` to stream OTEL spans and metrics to stdout without a collector:
+        ```bash
+        lithos serve --transport sse --port 8765 --telemetry-console
+        ```
+
 === "Development install"
 
-    For hacking on Lithos itself:
+    For hacking on Lithos itself, the project now uses `uv` exclusively:
 
     ```bash
     git clone https://github.com/agent-lore/lithos.git
     cd lithos
     uv sync --extra dev
+    make check        # lint + type check + unit tests
     uv run lithos serve --transport sse --port 8765
     ```
 
@@ -205,6 +212,9 @@ You should see:
 
 !!! warning "Pre-1.0 compatibility"
     Lithos follows a **migration safety over API stability** policy pre-1.0. MCP tool signatures may change between minor versions, but your on-disk Markdown knowledge is always preserved. Check the [Changelog](../changelog.md) before upgrading.
+
+!!! note "v0.2.1 breaking changes"
+    `lithos_links` and `lithos_provenance` were removed in v0.2.1. Replace them with [`lithos_related`](../mcp-tools/graph-tools.md).
 
 ---
 
