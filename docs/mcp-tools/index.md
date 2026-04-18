@@ -1,6 +1,6 @@
 # MCP Tools Reference
 
-Lithos exposes **26 MCP tools** across five categories. All tools are available via both SSE and stdio transports.
+Lithos exposes **28 MCP tools** across five categories. All tools are available via both SSE and stdio transports.
 
 ## Tool Categories
 

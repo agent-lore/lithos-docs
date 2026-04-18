@@ -168,6 +168,66 @@ If running Agent Zero in Docker on the same host, use `host.docker.internal` to 
 }
 ```
 
+## Running Multiple Environments
+
+Lithos ships with `docker/run.sh`, a thin wrapper around `docker compose` that drives each environment from its own `.env.<name>` file and a distinct compose project name (`-p lithos-<name>`). This lets you run `prod`, `staging`, and `fuzz` side-by-side on one host without container name, port, or volume collisions.
+
+### Set up env files
+
+Create one file per environment under `docker/`:
+
+=== "prod"
+
+    ```bash
+    # docker/.env.prod
+    LITHOS_ENVIRONMENT=production
+    LITHOS_DATA_PATH=/path/to/lithos/data
+    LITHOS_HOST_PORT=8765
+    LITHOS_CONTAINER_NAME=lithos
+    ```
+
+=== "staging"
+
+    ```bash
+    # docker/.env.staging
+    LITHOS_ENVIRONMENT=staging
+    LITHOS_DATA_PATH=/path/to/lithos/data-staging
+    LITHOS_HOST_PORT=8766
+    LITHOS_CONTAINER_NAME=lithos-staging
+    ```
+
+=== "fuzz"
+
+    ```bash
+    # docker/.env.fuzz
+    LITHOS_ENVIRONMENT=fuzz
+    LITHOS_DATA_PATH=/path/to/lithos/data-fuzz
+    LITHOS_HOST_PORT=8767
+    LITHOS_CONTAINER_NAME=lithos-fuzz
+    ```
+
+`LITHOS_ENVIRONMENT` becomes the OTEL `deployment.environment` resource attribute, so metrics, traces, and logs are labelled per environment in your observability stack.
+
+### Use the launcher
+
+```bash
+cd docker
+
+./run.sh prod                 # build & start production (default action = up)
+./run.sh staging up           # same, explicit
+./run.sh fuzz logs            # follow container logs
+./run.sh staging status       # show running containers for this stack
+./run.sh prod down            # stop & remove the stack
+./run.sh fuzz restart         # down + up
+```
+
+Each environment gets its own container (`lithos`, `lithos-staging`, `lithos-fuzz`), its own host port, and its own data volume — they can all run concurrently. Running `./run.sh` with no arguments prints usage.
+
+!!! note "Env files are gitignored"
+    The `.env.<name>` files are gitignored by default so your data paths and any secrets stay off the repository.
+
+---
+
 ## Production Considerations
 
 !!! tip "Run on your home network"
