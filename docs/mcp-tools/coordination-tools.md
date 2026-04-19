@@ -198,6 +198,8 @@ Release a claim early. Use this if you're abandoning the work so another agent c
 
 Mark a task as completed. This also releases all active claims on the task.
 
+Optionally supply LCMA retrieval feedback (`cited_nodes`, `misleading_nodes`) to reinforce or penalise documents that were retrieved during the task. Feedback is validated against the audit receipt from the most recent `lithos_retrieve` call for this task.
+
 **Arguments:**
 
 | Name | Type | Required | Description |
@@ -205,6 +207,9 @@ Mark a task as completed. This also releases all active claims on the task.
 | `task_id` | string | ✅ | Task ID |
 | `agent` | string | ✅ | Agent marking completion |
 | `outcome` | string | — | Optional outcome summary. Persisted on the task row and forwarded in the `task.completed` event for LCMA consolidation. |
+| `cited_nodes` | string[] | — | Document UUIDs the agent found useful. Drives salience reinforcement. `null` = no feedback. |
+| `misleading_nodes` | string[] | — | Document UUIDs the agent found misleading. Drives salience penalty. `null` = no feedback. |
+| `receipt_id` | string | — | Specific `lithos_retrieve` receipt to bind feedback to. If omitted, the latest receipt for this task/agent is used. |
 
 **Returns:** `{ "success": true }` or `{ "status": "error", "code": "task_not_found" }`
 
@@ -217,6 +222,26 @@ lithos_task_complete(
     outcome="Found 3 viable rate-limiting strategies; documented in knowledge base."
 )
 ```
+
+**Example with LCMA feedback:**
+
+```python
+# After using lithos_retrieve, report which documents helped
+results = lithos_retrieve(query="rate limiting", task_id="task-abc123", agent_id="research-agent")
+receipt_id = results["receipt_id"]
+
+lithos_task_complete(
+    task_id="task-abc123",
+    agent="research-agent",
+    outcome="Completed research.",
+    cited_nodes=["uuid-of-helpful-doc-1", "uuid-of-helpful-doc-2"],
+    misleading_nodes=["uuid-of-bad-doc"],
+    receipt_id=receipt_id
+)
+```
+
+!!! info "Feedback is validated against the receipt"
+    Node IDs not present in the receipt (i.e. documents that were never retrieved in this session) are silently ignored. This prevents agents from manipulating salience scores for arbitrary documents.
 
 ---
 

@@ -1,6 +1,6 @@
 # Health Endpoint
 
-Check the health status of the Lithos server and its backends.
+Check the health status of the Lithos server and its components.
 
 !!! info "Not an MCP tool"
     As of v0.1.5, `health` is a plain **HTTP endpoint**, not an MCP tool. Use `GET /health` directly via `curl` or any HTTP client. This makes it easy to use with Docker `HEALTHCHECK`, load balancers, and monitoring systems — no MCP client required.
@@ -27,13 +27,12 @@ GET /health
 ```json
 {
   "status": "ok",
-  "backends": {
-    "tantivy": "ok",
-    "chroma": "ok",
-    "graph": "ok",
-    "coordination": "ok"
-  },
-  "version": "0.1.8"
+  "timestamp": "2026-04-19T08:00:00.000000+00:00",
+  "components": {
+    "kb_directory": { "status": "ok" },
+    "embedding_model": { "status": "ok" },
+    "knowledge_base": { "status": "ok" }
+  }
 }
 ```
 
@@ -42,13 +41,12 @@ When degraded:
 ```json
 {
   "status": "degraded",
-  "backends": {
-    "tantivy": "ok",
-    "chroma": "error: unable to connect",
-    "graph": "ok",
-    "coordination": "ok"
-  },
-  "version": "0.1.8"
+  "timestamp": "2026-04-19T08:00:00.000000+00:00",
+  "components": {
+    "kb_directory": { "status": "ok" },
+    "embedding_model": { "status": "unavailable", "error": "unable to connect" },
+    "knowledge_base": { "status": "ok" }
+  }
 }
 ```
 
@@ -93,7 +91,7 @@ import httpx
 response = httpx.get("http://localhost:8765/health")
 if response.status_code != 200:
     health = response.json()
-    print(f"⚠️  Lithos is degraded: {health['backends']}")
+    print(f"⚠️  Lithos is degraded: {health['components']}")
 else:
     print("✅ Lithos is healthy")
 ```
@@ -102,6 +100,6 @@ else:
 
 ## Notes
 
-- Use [`lithos_stats`](index.md) (MCP tool) for knowledge base statistics — document counts, agent activity, task totals.
-- A `"degraded"` status means one or more search backends are unavailable. Knowledge writes and reads may still work if only the search index is affected.
+- Use [`lithos_stats`](lithos_stats.md) (MCP tool) for knowledge base statistics — document counts, agent activity, task totals.
+- A `"degraded"` status means one or more components are unavailable. Check the `components` dict for which specific component failed and its `error` message.
 - The `/health` endpoint is always available, even when the MCP server is fully loaded, making it reliable for infrastructure monitoring.

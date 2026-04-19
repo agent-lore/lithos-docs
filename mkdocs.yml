@@ -121,13 +121,18 @@ nav:
     - Memory Model: concepts/memory-model.md
   - MCP Tools:
     - mcp-tools/index.md
-    - lithos_write: mcp-tools/lithos_write.md
-    - lithos_read: mcp-tools/lithos_read.md
-    - lithos_search: mcp-tools/lithos_search.md
-    - lithos_retrieve: mcp-tools/lithos_retrieve.md
-    - lithos_list: mcp-tools/lithos_list.md
-    - lithos_delete: mcp-tools/lithos_delete.md
-    - Health Endpoint: mcp-tools/lithos_health.md
+    - Knowledge:
+      - lithos_write: mcp-tools/lithos_write.md
+      - lithos_read: mcp-tools/lithos_read.md
+      - lithos_search: mcp-tools/lithos_search.md
+      - lithos_retrieve: mcp-tools/lithos_retrieve.md
+      - lithos_cache_lookup: mcp-tools/lithos_cache_lookup.md
+      - lithos_list: mcp-tools/lithos_list.md
+      - lithos_delete: mcp-tools/lithos_delete.md
+    - System:
+      - lithos_stats: mcp-tools/lithos_stats.md
+      - lithos_node_stats: mcp-tools/lithos_node_stats.md
+      - Health Endpoint: mcp-tools/lithos_health.md
     - lithos_agent_register: mcp-tools/lithos_agent_register.md
     - lithos_task_status: mcp-tools/lithos_task_status.md
     - Graph Tools: mcp-tools/graph-tools.md

@@ -1,6 +1,6 @@
 # Graph Tools
 
-Tools for navigating the knowledge graph built from wiki-links, provenance relationships, and LCMA typed edges.
+Tools for navigating and editing the knowledge graph built from wiki-links, provenance relationships, and LCMA typed edges.
 
 ---
 
@@ -227,3 +227,118 @@ Lithos maintains overlapping graph structures:
 **LCMA edges** are typed, namespaced relationships managed by the Layered Cognitive Memory Architecture pipeline.
 
 All graph structures are queryable via `lithos_related` for per-document neighbourhood traversal, or `lithos_edge_list` for global edge queries.
+
+---
+
+## lithos_edge_upsert
+
+Create or update a typed LCMA edge between two documents. The upsert key is `(from_id, to_id, type, namespace)` — calling with the same key updates the existing edge.
+
+<div class="tool-sig">lithos_edge_upsert(from_id, to_id, type, weight, namespace, [provenance_actor], [provenance_type], [evidence], [conflict_state])</div>
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|:--------:|-------------|
+| `from_id` | string | ✅ | Source document UUID |
+| `to_id` | string | ✅ | Target document UUID |
+| `type` | string | ✅ | Edge type (e.g. `"derived_from"`, `"supports"`, `"contradicts"`, `"related_to"`) |
+| `weight` | float | ✅ | Edge weight (higher = stronger relationship) |
+| `namespace` | string | ✅ | Namespace for the edge — must be non-empty |
+| `provenance_actor` | string | — | Agent or process that created the edge |
+| `provenance_type` | string | — | How the edge was derived (e.g. `"inferred"`, `"manual"`) |
+| `evidence` | object\|array | — | Supporting evidence; must be a dict or list (scalars rejected) |
+| `conflict_state` | string | — | Conflict state marker (see `lithos_conflict_resolve`) |
+
+### Returns
+
+```json
+{
+  "status": "ok",
+  "edge_id": "edge-uuid-abc123"
+}
+```
+
+### Error Envelope
+
+| Code | Condition |
+|------|-----------|
+| `invalid_input` | `namespace` is empty, or `evidence` is a scalar (not dict/list) |
+
+### Example
+
+```python
+# Record a "supports" relationship between two documents
+lithos_edge_upsert(
+    from_id="uuid-of-evidence-doc",
+    to_id="uuid-of-claim-doc",
+    type="supports",
+    weight=0.85,
+    namespace="research-sprint-4",
+    provenance_actor="synthesis-agent",
+    provenance_type="inferred"
+)
+```
+
+!!! note "Edge upsert vs lithos_write provenance"
+    `lithos_edge_upsert` writes to `edges.db` (the LCMA typed-edge store). It is separate from `derived_from_ids` in frontmatter, which is set via `lithos_write`. Use `lithos_edge_upsert` for typed, weighted, namespaced relationships; use `derived_from_ids` for simple "this note was synthesised from these sources" provenance.
+
+---
+
+## lithos_conflict_resolve
+
+Resolve a contradiction between two notes by setting the resolution state on a `contradicts` edge. Future retrieval reflects the resolution.
+
+<div class="tool-sig">lithos_conflict_resolve(edge_id, resolution, resolver, [winner_id])</div>
+
+### Parameters
+
+| Name | Type | Required | Description |
+|------|------|:--------:|-------------|
+| `edge_id` | string | ✅ | The edge ID of the `contradicts` edge to resolve |
+| `resolution` | string | ✅ | Resolution strategy — one of `accepted_dual`, `superseded`, `refuted`, `merged` |
+| `resolver` | string | ✅ | Agent or user identifier performing the resolution |
+| `winner_id` | string | — | Required when `resolution` is `"superseded"` — must be either the `from_id` or `to_id` of the edge |
+
+### Resolution strategies
+
+| Value | Meaning |
+|-------|---------|
+| `accepted_dual` | Both notes are correct in different contexts |
+| `superseded` | One note is newer/more accurate and replaces the other (`winner_id` required) |
+| `refuted` | One note has been disproved |
+| `merged` | The notes have been combined into a new synthesis document |
+
+### Returns
+
+```json
+{
+  "status": "ok",
+  "edge_id": "edge-uuid-abc123",
+  "conflict_state": "superseded"
+}
+```
+
+### Error Envelope
+
+| Code | Condition |
+|------|-----------|
+| `invalid_input` | `resolution` is not one of the valid values; `winner_id` is missing for `superseded`; `winner_id` is not one of the edge endpoints; the edge is not of type `contradicts` |
+| `not_found` | `edge_id` does not exist |
+| `update_failed` | Edge update could not be applied |
+
+### Example
+
+```python
+# Find all unresolved contradictions
+edges = lithos_edge_list(type="contradicts")
+for edge in edges["results"]:
+    if edge.get("conflict_state") is None:
+        # Resolve: the newer document supersedes the older one
+        lithos_conflict_resolve(
+            edge_id=edge["id"],
+            resolution="superseded",
+            resolver="review-agent",
+            winner_id=edge["to_id"]
+        )
+```
