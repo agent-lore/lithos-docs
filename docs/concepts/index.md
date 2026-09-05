@@ -7,3 +7,4 @@ Understand how Lithos works under the hood before diving into the tool reference
 | [Overview](overview.md) | The big picture — KB, graph, search, agent coordination |
 | [Architecture](architecture.md) | Storage layers, indexing pipeline, MCP interface |
 | [Memory Model](memory-model.md) | How `lithos_write`, `lithos_search`, and `lithos_list` compose |
+| [Envelopes, Errors & IDs](envelopes.md) | How tools report outcomes, short ID prefixes, migration notes |
