@@ -4,10 +4,10 @@ Running Lithos directly on a host gives you more control over resource usage, se
 
 ## Prerequisites
 
-- Python 3.11+ (`python3 --version`)
+- Python 3.12+ (`python3 --version`)
 - pip or uv
 - 512 MB RAM minimum (1 GB recommended)
-- ~200 MB disk for the package + ~90 MB for the embedding model
+- ~200 MB disk for the package + ~90 MB for the embedding model (downloaded on first run; the spaCy NER model is fetched on first use)
 
 ## Install
 
@@ -32,7 +32,8 @@ Running Lithos directly on a host gives you more control over resource usage, se
 Verify:
 
 ```bash
-lithos --version
+lithos --help
+pip show lithos-mcp   # shows the installed version
 ```
 
 ## Run as a systemd Service
@@ -52,7 +53,7 @@ Type=simple
 User=lithos
 Group=lithos
 WorkingDirectory=/opt/lithos
-ExecStart=/usr/local/bin/lithos --data-dir /opt/lithos/data serve --transport sse --host 0.0.0.0 --port 8765
+ExecStart=/usr/local/bin/lithos --data-dir /opt/lithos/data serve --transport http --host 0.0.0.0 --port 8765
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal
@@ -98,7 +99,7 @@ cat > ~/Library/LaunchAgents/dev.getlithos.lithos.plist << 'EOF'
         <string>/Users/YOUR_USER/lithos-data</string>
         <string>serve</string>
         <string>--transport</string>
-        <string>sse</string>
+        <string>http</string>
         <string>--host</string>
         <string>0.0.0.0</string>
         <string>--port</string>
@@ -126,14 +127,14 @@ launchctl start dev.getlithos.lithos
 Lithos runs well on a Raspberry Pi 4 (4 GB RAM recommended for the embedding model). The sentence-transformers model (`all-MiniLM-L6-v2`) runs on ARM CPU without modification.
 
 ```bash
-# Raspberry Pi OS (64-bit) setup
+# Raspberry Pi OS (64-bit) setup — needs Python 3.12
 sudo apt update
 sudo apt install python3 python3-pip
 
 pip3 install lithos-mcp
 
 # Run in the background with nohup during setup
-nohup lithos serve --transport sse --host 0.0.0.0 --port 8765 &
+nohup lithos serve --transport http --host 0.0.0.0 --port 8765 &
 
 # Check it's running
 curl http://localhost:8765/health
@@ -143,12 +144,10 @@ For a permanent install, use the systemd instructions above.
 
 ## Backup Strategy
 
-The two directories that **must** be backed up:
-
 | Path | Contents | Back up? |
 |------|---------|:--------:|
 | `data/knowledge/` | Your Markdown knowledge files | ✅ Yes |
-| `data/.lithos/` | SQLite coordination DB | ✅ Yes |
+| `data/.lithos/` | SQLite stores: coordination.db, edges.db, stats.db + audit log | ✅ Yes |
 | `data/.tantivy/` | Full-text index | ❌ Rebuildable |
 | `data/.chroma/` | Vector embeddings | ❌ Rebuildable |
 | `data/.graph/` | Graph cache | ❌ Rebuildable |
@@ -174,7 +173,7 @@ If indices become corrupt or you move data to a new machine:
 lithos --data-dir /opt/lithos/data reindex --clear
 ```
 
-This rebuilds Tantivy and ChromaDB from the Markdown files. The coordination DB (`.lithos/`) is preserved.
+This rebuilds Tantivy and ChromaDB from the Markdown files. The SQLite stores (`.lithos/`) are preserved. To repair derived state without a full rebuild, use `lithos reconcile` (it exits non-zero on problems, so it can gate a cron job).
 
 ## Upgrading
 
@@ -183,7 +182,7 @@ pip install --upgrade lithos-mcp
 sudo systemctl restart lithos
 ```
 
-Check the [Changelog](../changelog.md) before upgrading for breaking changes.
+Check the [Changelog](../changelog.md) before upgrading for breaking changes — notably, v0.3.2 renamed `--transport sse` to `--transport http` (update your unit files) and v0.4.0 changed the error envelope.
 
 ## Monitoring
 
@@ -196,3 +195,5 @@ if [ "$HEALTH" != "ok" ]; then
     echo "Lithos health check failed: $HEALTH" | mail -s "Lithos alert" admin@example.com
 fi
 ```
+
+For metrics, traces, and structured logs, see [Observability](observability.md).
