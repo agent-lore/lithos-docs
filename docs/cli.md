@@ -24,9 +24,17 @@ docker compose exec lithos lithos --help
 lithos [OPTIONS] COMMAND [ARGS]...
 
 Options:
-  -c, --config PATH    Path to config YAML
-  -d, --data-dir PATH  Data directory path
-  --help               Show this message and exit
+  -c, --config PATH     Path to config YAML
+  -d, --data-dir PATH   Data directory path
+  --telemetry-console   Route OTEL metrics + spans to stdout (local debugging
+                        without a collector)
+  --help                Show this message and exit
+```
+
+Logging and telemetry are set up at the group entrypoint, so **every** command exports spans and metrics — `--telemetry-console` is global and works with any command:
+
+```bash
+lithos --telemetry-console reconcile
 ```
 
 ## Commands
@@ -37,8 +45,9 @@ Options:
 # stdio transport (for Claude Desktop and local MCP clients)
 lithos serve
 
-# SSE transport (for Agent Zero, remote Claude Code, OpenClaw)
-lithos serve --transport sse --host 0.0.0.0 --port 8765
+# HTTP transport — serves both /mcp (StreamableHTTP) and /sse (legacy SSE)
+# on the same port, for network clients
+lithos serve --transport http --host 0.0.0.0 --port 8765
 
 # Disable file watcher (useful in read-only or CI environments)
 lithos serve --no-watch
@@ -46,10 +55,13 @@ lithos serve --no-watch
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `-t, --transport` | `stdio` | Transport: `stdio` or `sse` |
-| `--host` | `127.0.0.1` | Bind host (SSE only) |
-| `-p, --port` | `8765` | Bind port (SSE only) |
+| `-t, --transport` | `stdio` | `stdio` or `http` (`http` serves both `/mcp` and `/sse`) |
+| `--host` | `127.0.0.1` | Bind host (http only) |
+| `-p, --port` | `8765` | Bind port (http only) |
 | `--watch / --no-watch` | watch enabled | Watch for filesystem changes |
+
+!!! note "v0.3.2: `sse` → `http`"
+    The transport value `sse` was renamed to `http` with no back-compat alias. The old SSE endpoint still exists — the `http` transport serves it alongside StreamableHTTP.
 
 ---
 
@@ -83,13 +95,18 @@ lithos --data-dir ./docker/data stats
 Example output:
 
 ```
-Documents:      42
-Chunks:         187
-Agents:         3
-Active tasks:   2
-Open claims:    1
-Tags:           18
-Duplicate URLs: 0
+Lithos Statistics
+========================================
+Documents:     42
+Search chunks: 187
+Graph nodes:   45
+Graph edges:   112
+Tags:          18
+Agents:        3
+Active tasks:  2
+Open claims:   1
+
+Data directory: /path/to/data
 ```
 
 ---
@@ -133,6 +150,8 @@ Checks for:
 
 ### `reconcile` — Repair derived state
 
+Reconciles derived views (search indices, graph cache, provenance projection) against the Markdown corpus without touching the Markdown itself. Exits non-zero when reconciliation reports problems, so it can gate cron jobs and CI.
+
 ```bash
 # Reconcile everything
 lithos reconcile
@@ -140,28 +159,89 @@ lithos reconcile
 # Dry run to see what would change
 lithos reconcile --dry-run --json-output
 
-# Reconcile only the graph cache
+# Reconcile a single scope
 lithos reconcile --scope graph
 ```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-s, --scope` | `all` | `all` \| `indices` \| `graph` \| `provenance_projection` |
+| `--dry-run / --no-dry-run` | no-dry-run | Report without applying |
+| `--json-output / --no-json-output` | text | Machine-readable report |
+
+---
+
+### `extract-entities` — Re-extract entity frontmatter
+
+```bash
+# Preview what would change
+lithos extract-entities --dry-run
+
+# Default: only documents with no entities or a stale extractor marker
+lithos extract-entities
+
+# Bootstrap a corpus from before extractor provenance existed
+lithos extract-entities --force
+```
+
+Unlike `reconcile`, this command **mutates Markdown source files**: it replaces each document's `entities` list with the current extractor's output and stamps `entities_extractor` provenance. Entities without a marker are treated as agent-curated and skipped unless `--force` is given. Run `lithos reconcile` afterwards to refresh derived views.
+
+Entity extraction uses spaCy's `en_core_web_sm`, downloaded on first use (pre-install with `python -m spacy download en_core_web_sm`; the Docker image bakes it in). If the model is unavailable, extraction falls back to heuristics.
+
+---
+
+### `recalibrate-salience` — One-time salience backfill
+
+```bash
+# Preview the distribution and how many rows would be lifted
+lithos recalibrate-salience --dry-run
+
+# Lift decay-collapsed rows up to the floor (config lcma.salience_floor)
+lithos recalibrate-salience
+
+# Override the floor explicitly
+lithos recalibrate-salience --floor 0.3
+```
+
+Lifts every node whose salience decayed below the floor back up to it — except nodes carrying explicit negative feedback (misleading / chronically ignored), which stay below deliberately. Idempotent and safe to re-run; only touches `stats.db`. Going forward the daily sweep holds the floor, so this is a one-time repair for databases from before `lcma.salience_floor` existed.
 
 ---
 
 ### `inspect` — Inspect backends and documents
 
 ```bash
-# Server health
+# Server health (exit code 0/1)
 lithos inspect health
 
 # List all registered agents
 lithos inspect agents
 
-# List all tasks
+# List tasks (open by default; --all includes closed)
 lithos inspect tasks --all
 
 # Inspect a specific document
 lithos inspect doc <id-or-path>
 lithos inspect doc <id-or-path> --content
 ```
+
+---
+
+### `audit` — Read-access audit log
+
+The CLI equivalent of [`GET /audit`](mcp-tools/system.md#get-audit):
+
+```bash
+lithos audit
+lithos audit --agent claude-code-researcher --since 2026-09-01T00:00:00 -n 100
+lithos audit --doc <doc-id>
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `-a, --agent` | — | Filter by reporting agent |
+| `-s, --since` | — | ISO timestamp lower bound |
+| `-n, --limit` | `50` | Max entries |
+| `--doc` | — | Filter by document ID |
 
 ---
 
@@ -189,9 +269,6 @@ Every command has `--help`:
 ```bash
 lithos --help
 lithos serve --help
-lithos search --help
-lithos reindex --help
-lithos validate --help
-lithos stats --help
+lithos reconcile --help
 lithos inspect --help
 ```

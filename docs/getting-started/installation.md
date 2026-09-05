@@ -4,13 +4,13 @@
 
 | Component | Minimum | Notes |
 |-----------|---------|-------|
-| Python | 3.11+ | 3.12 recommended |
+| Python | 3.12+ | Required since v0.4.0 |
 | RAM | 512 MB | 1 GB+ for large knowledge bases |
 | Disk | 200 MB | Base install; data grows with your KB |
 | OS | Linux, macOS, Windows (WSL2) | Docker image is `linux/amd64` and `linux/arm64` |
 
-!!! note "Sentence Transformers"
-    Lithos downloads a sentence-transformers model (`all-MiniLM-L6-v2`, ~90 MB) on first run to power semantic search. Subsequent starts use the cached model. No internet connection is required after the first run.
+!!! note "Models downloaded on first use"
+    Lithos uses a sentence-transformers model (`all-MiniLM-L6-v2`, ~90 MB) for semantic search and the spaCy `en_core_web_sm` model for entity extraction. PyPI installs download both on first use and cache them; the Docker image bakes them in and starts fully offline. To pre-install the spaCy model: `python -m spacy download en_core_web_sm`.
 
 ---
 
@@ -18,27 +18,25 @@
 
 === "Docker (recommended)"
 
-    Docker is the easiest way to run Lithos — no Python environment management, no dependency conflicts.
+    Docker is the easiest way to run Lithos — no Python environment management, and both models are baked into the image.
 
     **Prerequisites:** [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) (v2+)
 
     ```bash
     git clone https://github.com/agent-lore/lithos.git
-    cd lithos
+    cd lithos/docker
     docker compose up -d
     ```
 
-    This starts Lithos on SSE transport at `http://localhost:8765/sse`.
+    This starts Lithos with the HTTP transport on port 8765 — `POST /mcp` (StreamableHTTP) and `GET /sse` (legacy SSE) on the same port.
 
-    Data is persisted in a Docker volume (`lithos_data`). To use a local directory instead:
+    Data is stored in `./data` next to the compose file by default; set `LITHOS_DATA_PATH` to use another directory:
 
-    ```yaml
-    # docker-compose.override.yml
-    services:
-      lithos:
-        volumes:
-          - ./my-knowledge-base:/app/data
+    ```bash
+    LITHOS_DATA_PATH=/mnt/nas/lithos-kb docker compose up -d
     ```
+
+    See [Docker deployment](../deployment/docker.md) for multi-environment setups (`run.sh`, `.env.<name>` files).
 
 === "pip"
 
@@ -49,8 +47,8 @@
     Then start the server:
 
     ```bash
-    # SSE transport (recommended for network clients)
-    lithos serve --transport sse --host 0.0.0.0 --port 8765
+    # HTTP transport (recommended for network clients)
+    lithos serve --transport http --host 0.0.0.0 --port 8765
 
     # stdio transport (for Claude Desktop, local MCP clients)
     lithos serve
@@ -62,32 +60,32 @@
 
     ```bash
     uv pip install lithos-mcp
-    lithos serve --transport sse --port 8765
+    lithos serve --transport http --port 8765
     ```
 
     !!! tip "Local dev with telemetry"
-        Use `--telemetry-console` to stream OTEL spans and metrics to stdout without a collector:
+        Use the global `--telemetry-console` option to stream OTEL spans and metrics to stdout without a collector:
         ```bash
-        lithos serve --transport sse --port 8765 --telemetry-console
+        lithos --telemetry-console serve --transport http --port 8765
         ```
 
 === "Development install"
 
-    For hacking on Lithos itself, the project now uses `uv` exclusively:
+    For hacking on Lithos itself, the project uses `uv` exclusively:
 
     ```bash
     git clone https://github.com/agent-lore/lithos.git
     cd lithos
     uv sync --extra dev
     make check        # lint + type check + unit tests
-    uv run lithos serve --transport sse --port 8765
+    uv run lithos serve --transport http --port 8765
     ```
 
 ---
 
 ## Connect an Agent
 
-Once Lithos is running, add it to your agent's MCP config:
+Once Lithos is running, add it to your agent's MCP config. Network clients should prefer the StreamableHTTP endpoint (`/mcp`); the legacy SSE endpoint (`/sse`) remains for clients that only speak SSE.
 
 === "Claude Desktop"
 
@@ -109,7 +107,7 @@ Once Lithos is running, add it to your agent's MCP config:
 === "Claude Code"
 
     ```bash
-    claude mcp add --transport sse lithos http://localhost:8765/sse
+    claude mcp add --transport http lithos http://localhost:8765/mcp
     ```
 
 === "OpenClaw"
@@ -157,10 +155,11 @@ Once Lithos is running, add it to your agent's MCP config:
 
 === "Any MCP client"
 
-    Lithos speaks standard MCP. Any client that supports SSE transport can connect:
+    Lithos speaks standard MCP. Both HTTP transports are served on one port:
 
     ```
-    SSE endpoint: http://<host>:8765/sse
+    StreamableHTTP endpoint: http://<host>:8765/mcp   (MCP 2025-03-26+, stateless)
+    Legacy SSE endpoint:     http://<host>:8765/sse
     ```
 
     For stdio transport, use `lithos serve` (no flags) as the command.
@@ -170,26 +169,24 @@ Once Lithos is running, add it to your agent's MCP config:
 ## Verify the Installation
 
 ```bash
-# Check the server is running
 curl http://localhost:8765/health
-
-# Or use the CLI
-lithos stats
 ```
 
-You should see:
+You should see `200 OK` with:
 
 ```json
 {
-  "documents": 0,
-  "chunks": 0,
-  "agents": 0,
-  "active_tasks": 0,
-  "open_claims": 0,
-  "tags": 0,
-  "duplicate_urls": 0
+  "status": "ok",
+  "timestamp": "2026-09-05T12:00:00+00:00",
+  "components": {
+    "kb_directory": {"status": "ok"},
+    "search": {"status": "ok"},
+    "knowledge_base": {"status": "ok"}
+  }
 }
 ```
+
+Or from the CLI: `lithos stats` prints document, index, graph, agent, task, and claim counts plus the data directory in use.
 
 ---
 
@@ -213,8 +210,8 @@ You should see:
 !!! warning "Pre-1.0 compatibility"
     Lithos follows a **migration safety over API stability** policy pre-1.0. MCP tool signatures may change between minor versions, but your on-disk Markdown knowledge is always preserved. Check the [Changelog](../changelog.md) before upgrading.
 
-!!! note "v0.2.1 breaking changes"
-    `lithos_links` and `lithos_provenance` were removed in v0.2.1. Replace them with [`lithos_related`](../mcp-tools/knowledge-read.md#lithos_related).
+!!! note "Upgrading from 0.3.x or earlier?"
+    v0.4.0 changed the error envelope, and v0.3.2 renamed the `sse` transport to `http` (no alias — update any `lithos serve --transport sse` invocations). See [Envelopes, Errors & IDs → Migrating older clients](../concepts/envelopes.md#migrating-older-clients) for the full list.
 
 ---
 
