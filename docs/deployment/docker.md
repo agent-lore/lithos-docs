@@ -1,58 +1,52 @@
 # Docker Deployment
 
-Docker is the recommended deployment method for Lithos. It bundles all dependencies (Python, Tantivy, ChromaDB, sentence-transformers) into a single image.
+Docker is the recommended deployment method for Lithos. The image bundles all dependencies — Python 3.12, Tantivy, ChromaDB, sentence-transformers, and spaCy — with both ML models **baked in at build time**, so containers start fully offline.
 
 ## Quick Start
 
+The shipped compose file builds the image from source:
+
 ```bash
 git clone https://github.com/agent-lore/lithos.git
-cd lithos
+cd lithos/docker
 docker compose up -d
 ```
 
-Lithos is now running at `http://localhost:8765/sse`.
+Lithos is now serving MCP at `http://localhost:8765/mcp` (StreamableHTTP) and `http://localhost:8765/sse` (legacy SSE).
 
-## Default docker-compose.yml
-
-```yaml
-services:
-  lithos:
-    image: davesnowdon/lithos:latest
-    restart: unless-stopped
-    ports:
-      - "8765:8765"
-    volumes:
-      - lithos_data:/app/data
-    environment:
-      LITHOS_LOG_LEVEL: info
-
-volumes:
-  lithos_data:
-```
-
-## Using a Local Data Directory
-
-To store your knowledge base in a directory on the host (recommended for easy access and backup):
-
-```yaml
-# docker-compose.override.yml
-services:
-  lithos:
-    volumes:
-      - /path/to/your/knowledge-base:/app/data
-```
-
-Then restart:
+Alternatively, use the published image directly:
 
 ```bash
-docker compose up -d
+docker pull davesnowdon/lithos:latest
+docker run -d --name lithos -p 8765:8765 -v /path/to/kb:/data \
+  -e LITHOS_DATA_DIR=/data davesnowdon/lithos:latest
 ```
 
-Your Markdown files will be at `/path/to/your/knowledge-base/knowledge/`.
+(Version-pinned tags are published per release, e.g. `davesnowdon/lithos:0.4.0`.)
+
+## The shipped docker-compose.yml
+
+`docker/docker-compose.yml` is parametrized entirely through environment variables (all optional):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `LITHOS_IMAGE` | `lithos:local` | Image to run (`pull_policy: never` — built locally, or pre-pulled) |
+| `LITHOS_DATA_PATH` | `./data` | Host directory mounted at `/data` |
+| `LITHOS_HOST_PORT` | `8765` | Host port |
+| `LITHOS_CONTAINER_NAME` | `lithos` | Container name |
+| `LITHOS_UID` / `LITHOS_GID` | `1000` | Container user (matches your files' owner) |
+| `LITHOS_ENVIRONMENT` | `dev` | OTEL `deployment.environment` label |
+| `LITHOS_OTEL_ENABLED` | `true` | OTLP telemetry export |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://host.docker.internal:4318` | Collector endpoint |
+| `LITHOS_LCMA__LLM__*` | unset | Optional [LLM synthesis](../getting-started/configuration.md#lcmallm-background-synthesis) config, passed through to the container |
+
+The container runs `lithos serve --transport http --host 0.0.0.0 --port 8765`, stores data at `/data`, and health-checks `GET /health` every 10s (60s start period).
+
+Your Markdown files land at `${LITHOS_DATA_PATH}/knowledge/` on the host — open them in Obsidian directly.
 
 ## Configuration
 
-Pass configuration via environment variables in your override file:
+Environment variables are the cleanest way to configure the container — nested config uses the `LITHOS_<SECTION>__<FIELD>` form:
 
 ```yaml
 # docker-compose.override.yml
@@ -60,9 +54,7 @@ services:
   lithos:
     environment:
       LITHOS_LOG_LEVEL: debug
-      LITHOS_DATA_DIR: /app/data
-    volumes:
-      - ./my-kb:/app/data
+      LITHOS_SEARCH__SEMANTIC_THRESHOLD: "0.4"
 ```
 
 Or mount a config file:
@@ -72,87 +64,51 @@ services:
   lithos:
     volumes:
       - ./lithos.yaml:/app/lithos.yaml
-      - ./my-kb:/app/data
-    command: ["lithos", "--config", "/app/lithos.yaml", "serve", "--transport", "sse", "--host", "0.0.0.0", "--port", "8765"]
+    command: ["python", "-m", "lithos.cli", "--config", "/app/lithos.yaml",
+              "serve", "--transport", "http", "--host", "0.0.0.0", "--port", "8765"]
 ```
 
 ## Using the CLI Inside Docker
 
 ```bash
-# Knowledge base stats
 docker compose exec lithos lithos stats
-
-# Search
 docker compose exec lithos lithos search "my query"
-
-# Rebuild indices
 docker compose exec lithos lithos reindex --clear
-
-# Validate
 docker compose exec lithos lithos validate
-```
-
-## First Run: Model Download
-
-On first start, Lithos downloads the `all-MiniLM-L6-v2` sentence-transformers model (~90 MB). This is cached in the data volume — subsequent starts are fast.
-
-To pre-warm the model (useful in CI/CD or offline environments):
-
-```bash
-# Pull the image first
-docker compose pull
-
-# Start and wait for model download
-docker compose up
-# Watch for "Lithos ready" in logs, then Ctrl+C
-# The model is now cached in the volume
-
-# Start in background
-docker compose up -d
 ```
 
 ## Health Check
 
-The Docker image includes a health check that polls the HTTP `/health` endpoint (fixed in v0.1.8 — previously used a TCP-only probe):
+The image's `HEALTHCHECK` polls `GET /health`:
 
 ```bash
 docker compose ps  # shows health status
-```
 
-Or query directly:
-
-```bash
 curl http://localhost:8765/health
-# Returns 200 OK when healthy, 503 when degraded
+# 200 OK when healthy, 503 when degraded
 ```
 
 ## Upgrade
 
+With the shipped (build-from-source) compose:
+
 ```bash
-docker compose pull
-docker compose up -d
+cd lithos && git pull
+cd docker && docker compose build && docker compose up -d
 ```
 
-Data in the volume is preserved across upgrades.
+With the published image: `docker pull davesnowdon/lithos:latest`, then recreate the container. Data under `/data` is preserved either way. Check the [Changelog](../changelog.md) for breaking changes first.
 
 ## Backup
 
-Back up the critical directories:
+Back up the authoritative directories:
 
 ```bash
-# If using a host-mounted volume
-rsync -av /path/to/your/knowledge-base/knowledge/ /backup/lithos/knowledge/
-rsync -av /path/to/your/knowledge-base/.lithos/ /backup/lithos/.lithos/
+rsync -av ${LITHOS_DATA_PATH}/knowledge/ /backup/lithos/knowledge/
+rsync -av ${LITHOS_DATA_PATH}/.lithos/   /backup/lithos/.lithos/
 ```
 
-For Docker volumes:
-
-```bash
-docker run --rm \
-  -v lithos_data:/data \
-  -v /backup:/backup \
-  alpine tar czf /backup/lithos-backup-$(date +%Y%m%d).tar.gz /data/knowledge /data/.lithos
-```
+`.lithos/` holds `coordination.db` (tasks/claims/findings/agents), `edges.db` (asserted edges), `stats.db` (salience/receipts), and the read-audit log. The index directories (`.tantivy/`, `.chroma/`, `.graph/`) are rebuildable with `lithos reindex --clear`.
 
 ## Agent Zero + Docker
 
@@ -167,6 +123,8 @@ If running Agent Zero in Docker on the same host, use `host.docker.internal` to 
   }
 }
 ```
+
+The compose file maps `host.docker.internal` to the host gateway, so the reverse direction (Lithos reaching an Ollama or OTEL collector on the host) works too.
 
 ## Running Multiple Environments
 
@@ -206,7 +164,7 @@ Create one file per environment under `docker/`:
     LITHOS_CONTAINER_NAME=lithos-fuzz
     ```
 
-`LITHOS_ENVIRONMENT` becomes the OTEL `deployment.environment` resource attribute, so metrics, traces, and logs are labelled per environment in your observability stack.
+`LITHOS_ENVIRONMENT` becomes the OTEL `deployment.environment` resource attribute, so metrics, traces, and logs are labelled per environment in your observability stack. Add `LITHOS_LCMA__LLM__*` entries to an env file to enable LLM synthesis for that environment only.
 
 ### Use the launcher
 
@@ -221,20 +179,20 @@ cd docker
 ./run.sh fuzz restart         # down + up
 ```
 
-Each environment gets its own container (`lithos`, `lithos-staging`, `lithos-fuzz`), its own host port, and its own data volume — they can all run concurrently. Running `./run.sh` with no arguments prints usage.
+Each environment gets its own container, host port, and data directory — they can all run concurrently. Running `./run.sh` with no arguments prints usage.
 
 !!! note "Env files are gitignored"
-    The `.env.<name>` files are gitignored by default so your data paths and any secrets stay off the repository.
+    The `.env.<name>` files are gitignored so your data paths and any secrets (e.g. an LLM API key) stay off the repository.
 
 ---
 
 ## Production Considerations
 
 !!! tip "Run on your home network"
-    Lithos is designed for single-node, local-network deployment. If you need agents on multiple machines to access the same KB, expose Lithos on your local network (`--host 0.0.0.0`) and connect agents to the server's IP or hostname.
+    Lithos is designed for single-node, local-network deployment. If you need agents on multiple machines to access the same KB, expose Lithos on your local network and connect agents to the server's IP or hostname.
 
 !!! warning "No authentication"
-    Lithos assumes a single trusted network. Do not expose port 8765 to the public internet without additional security (VPN, firewall, reverse proxy with auth).
+    Lithos assumes a single trusted network. The MCP endpoints, `/events`, and `/audit` are unauthenticated. Do not expose port 8765 to the public internet without additional security (VPN, firewall, reverse proxy with auth).
 
 For a reverse proxy setup:
 

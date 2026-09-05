@@ -34,35 +34,35 @@ Every knowledge item is a plain `.md` file compatible with Obsidian. Your agents
 <div class="icon">🔍</div>
 **Hybrid search**
 
-Tantivy full-text BM25 + ChromaDB semantic vectors, fused with Reciprocal Rank Fusion (RRF). One call, best of both worlds.
+Tantivy full-text BM25 + ChromaDB semantic vectors, fused with Reciprocal Rank Fusion (RRF) — plus LCMA cognitive retrieval that learns which notes actually help.
 </div>
 
 <div class="feature-card" markdown>
 <div class="icon">🤝</div>
 **Multi-agent coordination**
 
-Task claiming with TTL-based distributed locks. Agents can stake out work, share findings, and avoid duplicate effort — no orchestration framework required.
+Task claiming with TTL-based locks, plus a full task graph: blocking dependencies, epics, gates on the outside world, and a query for what's ready to work right now.
 </div>
 
 <div class="feature-card" markdown>
 <div class="icon">🕸️</div>
 **Knowledge graph**
 
-Wiki-links (`[[note]]`) build a NetworkX graph automatically. Traverse relationships, query provenance lineage, discover what was derived from what.
+Wiki-links (`[[note]]`) build a NetworkX graph automatically. Traverse relationships, query provenance lineage, and assert typed edges between notes.
 </div>
 
 <div class="feature-card" markdown>
 <div class="icon">🔌</div>
 **MCP native**
 
-Exposes 28 tools via the Model Context Protocol over stdio or SSE. Add Lithos to any MCP-compatible agent in seconds — no SDK required.
+Exposes 37 tools via the Model Context Protocol over stdio or HTTP (StreamableHTTP + legacy SSE on one port). Add Lithos to any MCP-compatible agent in seconds — no SDK required.
 </div>
 
 <div class="feature-card" markdown>
 <div class="icon">🏠</div>
 **Truly local**
 
-No API keys. No telemetry. No cloud sync. Runs on a Raspberry Pi, a Mac Mini, or a VPS. Your data stays where you put it.
+No API keys. No telemetry by default. No cloud sync. Runs on a Raspberry Pi, a Mac Mini, or a VPS. Your data stays where you put it.
 </div>
 
 </div>
@@ -75,11 +75,11 @@ No API keys. No telemetry. No cloud sync. Runs on a Raspberry Pi, a Mac Mini, or
 
     ```bash
     git clone https://github.com/agent-lore/lithos.git
-    cd lithos
+    cd lithos/docker
     docker compose up -d
     ```
 
-    Lithos is now running on `http://localhost:8765/sse`.
+    Lithos is now serving MCP at `http://localhost:8765/mcp` (StreamableHTTP) and `http://localhost:8765/sse` (legacy SSE).
 
 === "pip / uv"
 
@@ -88,7 +88,7 @@ No API keys. No telemetry. No cloud sync. Runs on a Raspberry Pi, a Mac Mini, or
     # or
     uv pip install lithos-mcp
 
-    lithos serve --transport sse --host 0.0.0.0 --port 8765
+    lithos serve --transport http --host 0.0.0.0 --port 8765
     ```
 
 === "Claude Desktop"
@@ -109,7 +109,7 @@ No API keys. No telemetry. No cloud sync. Runs on a Raspberry Pi, a Mac Mini, or
 === "Claude Code"
 
     ```bash
-    claude mcp add --transport sse lithos http://localhost:8765/sse
+    claude mcp add --transport http lithos http://localhost:8765/mcp
     ```
 
 === "OpenClaw"
@@ -157,7 +157,11 @@ results = lithos_search(query="openai rate limit backoff", mode="hybrid")
 
 # Agent C coordinates parallel work
 task = lithos_task_create(title="Audit all API integrations", agent="orchestrator")
-lithos_task_claim(task_id=task.id, aspect="OpenAI audit", agent="agent-c", ttl_minutes=60)
+lithos_task_claim(task_id=task["task_id"], aspect="OpenAI audit",
+                  agent="agent-c", ttl_minutes=60)
+
+# Agent D just asks what's unblocked and ready to work
+ready = lithos_task_ready()
 ```
 
 ---
@@ -169,7 +173,7 @@ In 2026, running one agent is table stakes. Running a team of agents is where it
 Lithos is that channel. It's the **shared memory layer** your agents can actually trust: every item is timestamped, attributed, versioned, and searchable. Agents can declare confidence, set freshness deadlines, and build provenance chains. The knowledge base is a first-class artefact you can open in Obsidian, commit to git, and inspect at any time.
 
 !!! tip "The AI Runtime"
-    Think of Lithos like a software runtime for knowledge — not a static library. Notes are executable instructions. Outdated notes are bugs. The reconcile pipeline runs overnight and flags stale knowledge automatically.
+    Think of Lithos like a software runtime for knowledge — not a static library. Notes are executable instructions. Outdated notes are bugs. Retrieval feedback adjusts each note's salience over time, and the reconcile pipeline flags stale knowledge.
 
 ---
 
@@ -202,7 +206,7 @@ How Lithos stores, indexes, and retrieves knowledge.
 <div class="icon">🔧</div>
 **[MCP Tools](mcp-tools/index.md)**
 
-Full reference for all 28 MCP tools.
+Full reference for all 37 MCP tools.
 </div>
 
 </div>

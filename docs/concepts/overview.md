@@ -7,10 +7,10 @@ Lithos is a **shared memory layer** for teams of AI agents. It solves a fundamen
 Lithos provides:
 
 1. **A knowledge base** — structured Markdown notes that agents can read and write
-2. **Fast search** — full-text and semantic search over the entire KB
-3. **A knowledge graph** — relationships between notes via wiki-links
-4. **Coordination primitives** — task claiming, findings, status tracking
-5. **An MCP interface** — 22 tools accessible from any MCP-compatible agent
+2. **Fast search** — full-text, semantic, and cognitive retrieval over the entire KB
+3. **A knowledge graph** — wiki-link relationships, provenance lineage, and typed edges
+4. **Coordination primitives** — tasks with claims, findings, dependencies, epics, and gates
+5. **An MCP interface** — 37 tools accessible from any MCP-compatible agent
 
 ---
 
@@ -22,8 +22,9 @@ Everything in Lithos is a **knowledge item** — a Markdown file with YAML front
 
 - A unique UUID (`id`)
 - A title and human-readable content
-- Metadata: author, tags, confidence, timestamps, freshness deadline
+- Metadata: author, tags, confidence, timestamps, freshness deadline, plus free-form key/value metadata
 - Optional relationships: `derived_from_ids`, `source_url`, wiki-links
+- LCMA fields: `note_type` (affects retrieval ranking), `namespace`, `access_scope`, `entities`
 
 ```markdown
 ---
@@ -32,6 +33,7 @@ title: Python asyncio.gather patterns
 author: research-agent
 tags: [python, asyncio, patterns]
 confidence: 0.95
+note_type: agent_finding
 created_at: 2026-03-18T12:00:00Z
 updated_at: 2026-03-18T12:00:00Z
 version: 1
@@ -49,13 +51,17 @@ Use `asyncio.gather()` to run coroutines concurrently...
 
 ### The Knowledge Graph
 
-When an agent writes `[[note-title]]` in a knowledge item, Lithos automatically builds a directed graph (via NetworkX) of those relationships. This lets agents ask:
+Lithos actually maintains **three graphs** over your notes:
 
-- "What documents link *to* this note?" (`lithos_links` with `direction="incoming"`)
-- "What does this note link *out to*?" (`direction="outgoing"`)
-- "What's the provenance chain for this synthesis?" (`lithos_provenance`)
+| Graph | Built from | Query with |
+|-------|------------|------------|
+| Wiki-links | `[[note-title]]` in bodies (NetworkX) | [`lithos_related`](../mcp-tools/knowledge-read.md#lithos_related) (`links`), `lithos_search(mode="graph")` |
+| Provenance | `derived_from_ids` frontmatter | `lithos_related` (`provenance`) |
+| Typed edges | Agent assertions + LLM inference in `edges.db` | `lithos_related` (`edges`), [`lithos_edge_list`](../mcp-tools/graph-edges.md) |
 
-### Search
+One call — `lithos_related(id=...)` — merges all three into a single "what is this note connected to?" view.
+
+### Search and Retrieval
 
 Lithos maintains two parallel indices:
 
@@ -64,21 +70,24 @@ Lithos maintains two parallel indices:
 | Full-text | Tantivy (Rust BM25) | Exact terms, code snippets, error messages |
 | Semantic | ChromaDB + sentence-transformers | Natural language questions, concepts, intent |
 
-The default `lithos_search` mode is **hybrid** — it fuses both indices using Reciprocal Rank Fusion (RRF), giving you the precision of BM25 with the recall of semantic search.
+The default `lithos_search` mode is **hybrid** — it fuses both using Reciprocal Rank Fusion (RRF), giving the precision of BM25 with the recall of semantic search.
+
+On top of both sits **LCMA cognitive retrieval** (`lithos_retrieve`): parallel scouts, reranking by learned salience and usage, and an audit receipt per call. When agents complete tasks and report which notes were useful, salience updates — retrieval literally learns which notes help. See [Retrieval Tools](../mcp-tools/retrieval.md).
 
 ### Agents
 
-Any agent that talks to Lithos is **auto-registered** on first use. Agents are identified by free-form string IDs (e.g., `"research-agent"`, `"claude-code"`, `"openclaw"`). Optional registration with `lithos_agent_register` lets you attach a display name, type, and metadata.
+Any agent that talks to Lithos is **auto-registered** on first use. Agents are identified by free-form string IDs (e.g., `"research-agent"`, `"claude-code"`). Optional registration with `lithos_agent_register` attaches a display name, type, and metadata.
 
 ### Coordination
 
-Lithos provides lightweight coordination without requiring a central orchestrator:
+Lithos provides coordination without requiring a central orchestrator:
 
-- **Tasks**: named units of work that agents can create and track
+- **Tasks**: named units of work, with status (`open`/`completed`/`cancelled`) and free-form metadata
 - **Claims**: TTL-based locks on a specific *aspect* of a task (prevents duplicate effort)
-- **Findings**: structured results that agents post back to a task
+- **Findings**: structured results agents post back to a task
+- **The task graph**: `blocks` dependencies, `parent_child` hierarchy under epics, and **gates** that model waits on the outside world — with `lithos_task_ready` answering "what can I work on right now?"
 
-This lets agents divide work dynamically — one agent claims "API research", another claims "implementation", and they can check each other's status without stepping on each other's work.
+One agent claims "API research", another claims "implementation"; dependencies keep a deploy task blocked until its build task completes; a gate holds it behind a human sign-off. See [Task Graph](../mcp-tools/task-graph.md).
 
 ---
 
@@ -88,6 +97,7 @@ Lithos deliberately stores everything as Obsidian-compatible Markdown. This mean
 
 - **Obsidian is the human UI** — open your data directory in Obsidian to browse, visualise the graph, and edit notes
 - **Wiki-links are first-class** — `[[note-title]]` links are parsed by Lithos and reflected in the graph API
+- **External edits are safe** — the file watcher picks up Obsidian saves and renames and re-indexes incrementally
 - **No opaque formats** — your knowledge is not locked into a proprietary database
 
 !!! tip
@@ -99,13 +109,9 @@ Lithos deliberately stores everything as Obsidian-compatible Markdown. This mean
 
 Lithos is designed to run entirely on your own infrastructure:
 
-- **No API keys** — the embedding model runs locally via sentence-transformers
+- **No API keys** — the embedding and NER models run locally; the optional LLM synthesis feature only activates if you point it at an endpoint you choose
 - **No cloud sync** — your knowledge stays on your machine (use git externally if you want sync)
-- **No telemetry** — disabled by default
+- **No telemetry** — OTEL export is opt-in and points at your own collector
 - **Human-readable** — if Lithos ever disappears, your notes are still plain Markdown
 
-This makes Lithos suitable for:
-- Private research and internal tooling
-- Sensitive enterprise knowledge
-- Air-gapped environments
-- Anyone who wants to own their data
+This makes Lithos suitable for private research, sensitive enterprise knowledge, air-gapped environments, and anyone who wants to own their data.

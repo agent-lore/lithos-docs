@@ -4,6 +4,8 @@ Lithos is open source ([MIT License](https://github.com/agent-lore/lithos/blob/m
 
 ## Development Setup
 
+Requires Python 3.12+ and [uv](https://github.com/astral-sh/uv).
+
 ```bash
 git clone https://github.com/agent-lore/lithos.git
 cd lithos
@@ -11,58 +13,64 @@ cd lithos
 # Install with dev dependencies
 uv sync --extra dev
 
-# Run the test suite
-uv run --extra dev pytest -m "not integration" tests/ -q
+# Run the unit test suite
+make test
 ```
 
-## Running Tests
+## The Definition of Done
+
+A change is not done unless all of these are green — `make check` runs the first three:
 
 ```bash
-# Unit tests only (fast)
-uv run --extra dev pytest -m "not integration" tests/ -q
-
-# Integration tests (requires a running Lithos instance)
-uv run --extra dev pytest -m integration tests/ -q
-
-# All tests with coverage
-uv run --extra dev pytest tests/ --cov=lithos --cov-report=xml
+make lint              # ruff lint + format check
+make typecheck         # pyright (standard mode)
+make test              # unit tests
+make test-integration  # integration tests
+make check             # lint + typecheck + test
 ```
 
-## Code Style
+## Generated Architecture Docs
+
+`docs/generated/` in the lithos repo (component diagram, domain model, metrics, MCP tool catalog) is **generated from the code** by the guardrail tests and drift-checked in CI:
 
 ```bash
-# Format
-uv run --extra dev ruff format src/ tests/
-
-# Lint
-uv run --extra dev ruff check src/ tests/
-
-# Type check
-uv run --extra dev mypy src/
+make diagrams   # regenerate (runs pytest tests/guardrail/)
 ```
+
+Note that `make test` runs the same tests, so a test run rewrites `docs/generated/` as a side effect — commit the result if it changed, or the "Diagram drift" CI job will fail. `docs/architecture.toml` is the source of truth for components and tiers; adding a new module without mapping it there fails the orphan checks.
 
 ## Project Structure
 
 ```
 src/lithos/
-├── cli.py          ← Click CLI entry point
-├── config.py       ← Configuration loading and validation
-├── coordination.py ← Task/claim/finding/agent SQLite management
-├── errors.py       ← Error types and envelopes
-├── events.py       ← In-memory event bus
-├── graph.py        ← NetworkX wiki-link graph
-├── knowledge.py    ← Knowledge Manager (read/write/delete Markdown)
-├── reconcile.py    ← Index reconciliation and repair
-├── search.py       ← Search engine (Tantivy + ChromaDB + hybrid)
-├── server.py       ← FastMCP server and tool definitions
-└── telemetry.py    ← OpenTelemetry integration
+├── tools/             ← MCP tool registration modules (per category)
+├── lcma/              ← cognitive memory internals (scouts, retrieve,
+│                        salience, entities, enrichment, LLM synthesis)
+├── server.py          ← FastMCP server, transports, HTTP routes
+├── cli.py             ← Click CLI entry point
+├── config.py          ← LithosConfig (pydantic-settings)
+├── knowledge.py       ← Knowledge Manager (Markdown corpus)
+├── intake.py          ← CorpusIntake — all corpus mutations flow through here
+├── watch_intake.py    ← filesystem-driven mutations (watchdog)
+├── search.py          ← SearchEngine (Tantivy + ChromaDB + hybrid)
+├── graph.py           ← NetworkX wiki-link graph
+├── edge_store.py      ← edges.db (asserted typed edges)
+├── coordination.py    ← tasks, claims, findings, task edges, agents
+├── cognitive_memory.py← agent-facing LCMA facade
+├── envelopes.py       ← canonical response envelopes
+├── errors.py          ← error hierarchy
+├── events.py          ← in-memory event bus
+├── id_resolution.py   ← short-ID prefix resolution
+└── telemetry.py       ← OpenTelemetry integration
 ```
+
+Architectural rules are enforced in CI: three tiers (Entrypoints → Core → Foundation) with import-linter contracts, and ADRs under `docs/adr/` record the load-bearing decisions.
 
 ## Submitting a PR
 
 1. Fork the repo and create a branch: `git checkout -b feat/your-feature`
 2. Make your changes and add tests
-3. Run the linters and test suite
+3. Run `make check` (and `make test-integration` for behaviour changes)
 4. Open a PR against `main` on `agent-lore/lithos`
 5. Include a clear description of what changed and why
 
