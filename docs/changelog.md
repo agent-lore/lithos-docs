@@ -40,7 +40,7 @@ docker pull davesnowdon/lithos:0.2.1
     - `depth` is supported (1–3) for the links and provenance sections.
     - `namespace` scopes the `edges` section only.
 
-    → See [Graph Tools Reference](mcp-tools/graph-tools.md)
+    → See [`lithos_related`](mcp-tools/knowledge-read.md#lithos_related)
 
 - **`--telemetry-console` flag on `lithos serve` (PR #187):** DX shortcut that enables in-process OTEL console exporters without a collector. Metrics and spans go to stdout — useful for local debugging.
 
@@ -54,7 +54,7 @@ docker pull davesnowdon/lithos:0.2.1
 
 - **`outcome` parameter on `lithos_task_complete` (fix for PR #182):** Tasks can now record a completion outcome string. The value is persisted on the task row and included in the `task.completed` event payload for LCMA consolidation.
 
-    → See [Coordination Tools Reference](mcp-tools/coordination-tools.md)
+    → See [Task Tools Reference](mcp-tools/tasks.md)
 
 ### Removed
 
@@ -94,7 +94,7 @@ docker pull davesnowdon/lithos:0.2.1
 
 ### Added — LCMA MVP1 (Layered Cognitive Memory Architecture)
 
-- **`lithos_retrieve`** — cognitive retrieval tool that orchestrates parallel scouts (vector, lexical, provenance, task-context) with merge-and-normalize, Terrace 1 reranking, and audit receipt logging. Returns `reasons`, `scouts`, `salience`, `temperature`, `terrace_reached`, and `receipt_id` per result. See [lithos_retrieve](mcp-tools/lithos_search.md).
+- **`lithos_retrieve`** — cognitive retrieval tool that orchestrates parallel scouts (vector, lexical, provenance, task-context) with merge-and-normalize, Terrace 1 reranking, and audit receipt logging. Returns `reasons`, `scouts`, `salience`, `temperature`, `terrace_reached`, and `receipt_id` per result. See [`lithos_retrieve`](mcp-tools/retrieval.md#lithos_retrieve).
 - **`lithos_edge_upsert`** — create or update typed edges in `edges.db`. Upsert key is `(from_id, to_id, type, namespace)`.
 - **`lithos_edge_list`** — query edges from `edges.db` by optional filters (`from_id`, `to_id`, `type`, `namespace`).
 - **`lithos_write` LCMA fields:** `note_type`, `namespace`, `access_scope`, `summaries`, `schema_version` — all optional and additive; existing documents are unaffected.
@@ -109,7 +109,7 @@ docker pull davesnowdon/lithos:0.2.1
 
 ### Added
 
-- **`lithos_search` now supports `mode="graph"` (PR #146):** Traverse the knowledge graph from a starting document and return linked results. Returns documents reachable by wiki-link relationships rather than text/vector similarity. See [`lithos_search`](mcp-tools/lithos_search.md) for details.
+- **`lithos_search` now supports `mode="graph"` (PR #146):** Traverse the knowledge graph from a starting document and return linked results. Returns documents reachable by wiki-link relationships rather than text/vector similarity. See [`lithos_search`](mcp-tools/knowledge-read.md#lithos_search) for details.
 
 - **`lithos_stats` extended with health indicators (PR #159):** The stats response now includes a `health` block with pass/warn/fail indicators for each subsystem (index, embedding, coordination). Surfaces the same signal as `GET /health` but in machine-readable per-subsystem form.
 
