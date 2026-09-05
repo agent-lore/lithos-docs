@@ -119,6 +119,7 @@ nav:
     - Overview: concepts/overview.md
     - Architecture: concepts/architecture.md
     - Memory Model: concepts/memory-model.md
+    - Envelopes, Errors & IDs: concepts/envelopes.md
   - MCP Tools:
     - mcp-tools/index.md
     - Knowledge Write: mcp-tools/knowledge-write.md
