@@ -214,7 +214,7 @@ You should see:
     Lithos follows a **migration safety over API stability** policy pre-1.0. MCP tool signatures may change between minor versions, but your on-disk Markdown knowledge is always preserved. Check the [Changelog](../changelog.md) before upgrading.
 
 !!! note "v0.2.1 breaking changes"
-    `lithos_links` and `lithos_provenance` were removed in v0.2.1. Replace them with [`lithos_related`](../mcp-tools/graph-tools.md).
+    `lithos_links` and `lithos_provenance` were removed in v0.2.1. Replace them with [`lithos_related`](../mcp-tools/knowledge-read.md#lithos_related).
 
 ---
 
