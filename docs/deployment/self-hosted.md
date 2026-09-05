@@ -182,7 +182,7 @@ pip install --upgrade lithos-mcp
 sudo systemctl restart lithos
 ```
 
-Check the [Changelog](../changelog.md) before upgrading for breaking changes — notably, v0.3.2 renamed `--transport sse` to `--transport http` (update your unit files) and v0.4.0 changed the error envelope.
+Check the [Changelog](../changelog.md) before upgrading for breaking changes — notably, v0.3.2 renamed `--transport sse` to `--transport http` (update your unit files) and v0.4.0 changed the error envelope. <!-- drift-allow -->
 
 ## Monitoring
 
