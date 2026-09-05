@@ -31,8 +31,8 @@ This three-step pattern is the foundation. Everything else builds on it.
 ```mermaid
 stateDiagram-v2
     [*] --> Created : lithos_write (no id)
-    Created --> Updated : lithos_write (with id)
-    Updated --> Updated : lithos_write (with id)
+    Created --> Updated : lithos_write / lithos_note_update
+    Updated --> Updated : lithos_write / lithos_note_update
     Created --> Stale : expires_at reached
     Updated --> Stale : expires_at reached
     Stale --> Updated : lithos_write (refresh)
@@ -40,6 +40,10 @@ stateDiagram-v2
     Updated --> Deleted : lithos_delete
     Stale --> Deleted : lithos_delete
 ```
+
+Two write tools serve different jobs: `lithos_write` carries the full body; [`lithos_note_update`](../mcp-tools/knowledge-write.md#lithos_note_update) patches frontmatter (tags, metadata, title, status) **without** resending the body — use it for metadata-only changes so you never risk clobbering content you didn't mean to touch.
+
+Notes also carry a `status` (`active` / `archived` / `quarantined`) — quarantined notes are excluded from search and retrieval. Quarantine can happen automatically when a note collects repeated "misleading" feedback (see below).
 
 ### Freshness
 
@@ -51,7 +55,7 @@ Use `ttl_hours` for relative freshness windows on write:
 # This note will be stale after 24 hours
 lithos_write(
     title="Current BTC price",
-    content="$82,400 as of 2026-03-18",
+    content="$82,400 as of 2026-09-05",
     ttl_hours=24,
     agent="price-watcher"
 )
@@ -67,18 +71,12 @@ result = lithos_cache_lookup(
 )
 
 if result["hit"]:
-    # Use cached result
     print(result["document"]["content"])
 elif result["stale_exists"]:
-    # Update the stale document
-    lithos_write(
-        id=result["stale_id"],
-        content="...",  # updated content
-        agent="price-watcher"
-    )
+    # Refresh the stale document instead of writing a duplicate
+    lithos_write(id=result["stale_id"], content="...", agent="price-watcher")
 else:
-    # Cache miss — go fetch fresh data
-    ...
+    ...  # clean miss — go fetch fresh data
 ```
 
 ### Versioning
@@ -86,11 +84,9 @@ else:
 Every document has a `version` integer in its frontmatter, starting at 1 and incrementing on each update. This enables optimistic concurrency control:
 
 ```python
-# Read the current version
 doc = lithos_read(id="abc-123")
 current_version = doc["metadata"]["version"]  # e.g. 3
 
-# Update with version guard
 lithos_write(
     id="abc-123",
     content="Updated content...",
@@ -98,8 +94,10 @@ lithos_write(
     agent="my-agent"
 )
 # If another agent updated between read and write:
-# → { "status": "error", "code": "version_conflict", "current_version": 4 }
+# → { "status": "version_conflict", "message": "...", "current_version": 4 }
 ```
+
+On conflict: re-read, merge, retry. See [Envelopes, Errors & IDs](envelopes.md#optimistic-concurrency).
 
 ---
 
@@ -130,15 +128,26 @@ lithos_write(
 )
 ```
 
-Query the lineage graph:
+Query the lineage (and everything else the note connects to) with [`lithos_related`](../mcp-tools/knowledge-read.md#lithos_related):
 
 ```python
-# What did this synthesis come from?
-lithos_provenance(id="synthesis-uuid", direction="sources", depth=2)
-
-# What was derived from this document?
-lithos_provenance(id="source-a-uuid", direction="derived")
+rel = lithos_related(id="synthesis-uuid", include=["provenance"], depth=2)
+rel["provenance"]["sources"]   # what it came from
+rel["provenance"]["derived"]   # what was built on it
 ```
+
+---
+
+## Retrieval That Learns
+
+Beyond search, Lithos keeps per-note **cognitive state**: a salience score, retrieval counts, and penalty counters (in `stats.db`). The loop:
+
+1. `lithos_retrieve(query=..., task_id=...)` returns ranked results **and** a `receipt_id` recording exactly which notes were surfaced.
+2. The agent does the work.
+3. `lithos_task_complete(..., cited_nodes=[...], misleading_nodes=[...])` reports which surfaced notes genuinely helped or misled.
+4. Salience updates: cited notes get boosted, misleading notes penalized (three misleading marks quarantines a note), surfaced-but-ignored notes decay mildly. Unused notes decay slowly toward a floor.
+
+Future retrievals rerank with the updated salience plus a non-decaying usage signal — the knowledge base gets better at answering *because it's used*. Inspect any note's state with [`lithos_node_stats`](../mcp-tools/retrieval.md#lithos_node_stats).
 
 ---
 
@@ -156,7 +165,6 @@ cache = lithos_cache_lookup(
 )
 
 if not cache["hit"]:
-    # Do the research
     result = web_search("FastAPI rate limiting middleware")
     lithos_write(
         title="FastAPI rate limiting middleware",
@@ -176,7 +184,7 @@ task = lithos_task_create(
     agent="orchestrator"
 )
 
-# Worker agents claim different packages
+# Worker agents claim different aspects
 for package in ["requests", "sqlalchemy", "pydantic"]:
     lithos_task_claim(
         task_id=task["task_id"],
@@ -185,7 +193,7 @@ for package in ["requests", "sqlalchemy", "pydantic"]:
         ttl_minutes=30
     )
 
-# Workers post findings
+# Workers post findings as they go
 lithos_finding_post(
     task_id=task["task_id"],
     agent="worker-requests",
@@ -193,12 +201,13 @@ lithos_finding_post(
     knowledge_id="uuid-of-detailed-note"
 )
 
-# Orchestrator reviews findings
+# Orchestrator reviews findings and completes
 findings = lithos_finding_list(task_id=task["task_id"])
-
-# Mark complete
-lithos_task_complete(task_id=task["task_id"], agent="orchestrator")
+lithos_task_complete(task_id=task["task_id"], agent="orchestrator",
+                     outcome="All three packages clean")
 ```
+
+For larger workflows, dependencies replace polling: create tasks with `depends_on`, group them under an epic, and let workers pull from `lithos_task_ready()` — see [Task Graph](../mcp-tools/task-graph.md).
 
 ### Pattern 3: Negative Knowledge
 
@@ -209,12 +218,13 @@ lithos_write(
     title="[DONT] Use asyncio.run() inside a running event loop",
     content="""This causes a RuntimeError: "This event loop is already running."
 
-**What to do instead:** Use `await coroutine()` directly, or use
-`asyncio.ensure_future()` if you need a fire-and-forget.
+**What to do instead:** Use `await coroutine()` directly, or
+`asyncio.ensure_future()` for fire-and-forget.
 
 **Context:** Discovered when trying to use asyncio.run() in a Jupyter notebook.
 """,
     tags=["asyncio", "antipattern", "dont"],
+    note_type="agent_finding",
     agent="debug-agent"
 )
 ```
@@ -232,5 +242,7 @@ Every knowledge item has two identifiers:
 | `id` (UUID) | `f47ac10b-58cc-4372-a567-0e02b2c3d479` | Stable programmatic reference. Use in `lithos_read`, `lithos_write` (update), `lithos_delete`, `derived_from_ids`. |
 | `path` (slug) | `python-asyncio-gather-patterns.md` | Human-readable filename. Shown in results. Rename-safe via `[[wiki-links]]`. |
 
+Every id parameter also accepts an unambiguous **short prefix** (≥6 chars) — see [Envelopes, Errors & IDs](envelopes.md#short-id-prefixes).
+
 !!! tip
-    Always use `id` when referencing documents programmatically. Paths can change if you rename a file in Obsidian; the `id` in the frontmatter is stable.
+    Always use `id` when referencing documents programmatically. Paths can change if you rename a file in Obsidian; the `id` in the frontmatter is stable (and Lithos preserves it across on-disk renames).
