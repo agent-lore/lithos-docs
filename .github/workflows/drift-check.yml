@@ -1,0 +1,22 @@
+name: Drift check
+
+# Asserts the docs site agrees with the lithos repo's generated tool catalog
+# and contains no stale markers. The weekly run is the backstop: it fails when
+# lithos main moves and the site hasn't — that failure IS the "docs are stale"
+# signal, independent of any PR activity here.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check docs against lithos main
+        run: python3 scripts/check_drift.py

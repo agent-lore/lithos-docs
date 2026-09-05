@@ -211,7 +211,7 @@ Or from the CLI: `lithos stats` prints document, index, graph, agent, task, and 
     Lithos follows a **migration safety over API stability** policy pre-1.0. MCP tool signatures may change between minor versions, but your on-disk Markdown knowledge is always preserved. Check the [Changelog](../changelog.md) before upgrading.
 
 !!! note "Upgrading from 0.3.x or earlier?"
-    v0.4.0 changed the error envelope, and v0.3.2 renamed the `sse` transport to `http` (no alias — update any `lithos serve --transport sse` invocations). See [Envelopes, Errors & IDs → Migrating older clients](../concepts/envelopes.md#migrating-older-clients) for the full list.
+    v0.4.0 changed the error envelope, and v0.3.2 renamed the `sse` transport to `http` (no alias — update any `lithos serve --transport sse` invocations). <!-- drift-allow --> See [Envelopes, Errors & IDs → Migrating older clients](../concepts/envelopes.md#migrating-older-clients) for the full list.
 
 ---
 
