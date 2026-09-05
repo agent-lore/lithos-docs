@@ -4,6 +4,134 @@ All notable changes to Lithos are documented here. The full changelog is maintai
 
 ---
 
+## Unreleased (on `main`)
+
+Shipped on `main` after the v0.4.0 tag; running in source/`main`-built deployments today.
+
+### Added
+
+- **Short ID prefixes accepted everywhere (PR #412):** every task/note id parameter takes an unambiguous git-style prefix (≥ 6 chars). Ambiguity fails loudly with the new `ambiguous_id_prefix` code carrying up to 5 `{id, title}` candidates; mutating responses now echo the resolved full id + title. Behaviour tightened along the way: unknown 6–35-char task prefixes return `task_not_found` on *every* task tool (previously `claim_failed`/`claim_not_found`/silently empty), and `lithos_write` with an unknown `id` returns a `note_not_found` envelope instead of a protocol-level error. See [Envelopes, Errors & IDs](concepts/envelopes.md#short-id-prefixes).
+- **`updated_at` on task records (PR #416):** last-modified stamp bumped by every task-row write (create/update/complete/cancel/reopen — claims never bump it), returned by all task-fetching tools, carried in row-mutating events, and echoed by mutating responses. Compare stamps for equality to detect concurrent edits. Existing databases are migrated in place.
+- **`lithos_retrieve` degradation signal (PR #397):** responses always carry `degraded` and `failed_scouts`, so callers can distinguish partial results (a backend down) from an empty corpus. New alertable metric `lithos.lcma.scout.failures`.
+- **Salience recalibration (PR #402):** decay now bottoms out at `lcma.salience_floor` (default 0.3) instead of zero; new non-decaying `usage_score` result field feeds reranking; new `lithos recalibrate-salience` CLI command backfills collapsed databases; decay/reinforcement constants became config fields.
+- **Local/remote LLM synthesis (PRs #405, #406):** new `lcma.llm` config block (any OpenAI-compatible endpoint — Ollama, llama.cpp, vLLM, hosted). The background enrichment worker has the LLM adjudicate typed edges between semantically-close notes, written to `edges.db` as `provenance_type: "inferred"` with rationale and confidence as evidence. **Enabled only when `base_url` is set** — unset is a strict no-op. Token spend bounded by a daily budget.
+- **SSE `resync` control event (PR #400):** `GET /events` now tells reconnecting clients when their `Last-Event-ID` fell off the replay ring buffer, instead of silently under-delivering. Consumers must handle `event: resync`.
+
+### Fixed
+
+- **Bare YAML dates in frontmatter broke indexing (PR #411):** an unquoted `created: 2026-07-30` could silently drop notes from search — and after an internal refactor, crash the startup rebuild. Both YAML ingestion points now normalize date objects; hand-edited frontmatter can no longer abort the startup scan.
+- **Docker: `LITHOS_LCMA__LLM__*` env vars are now forwarded into the container (PRs #409, #410)**, and `llm.max_output_tokens` default raised 1024 → 4096 for reasoning models.
+
+---
+
+## v0.4.0
+
+**Released:** 2026-07-06 · [GitHub Release](https://github.com/agent-lore/lithos/releases/tag/v0.4.0) · [PyPI](https://pypi.org/project/lithos-mcp/0.4.0/) · [Docker Hub](https://hub.docker.com/r/davesnowdon/lithos/tags)
+
+Install:
+```bash
+pip install lithos-mcp==0.4.0
+# or
+docker pull davesnowdon/lithos:0.4.0
+```
+
+### Breaking — canonical error envelope (PRs #370, #371)
+
+Every tool **failure** now returns exactly `{"status": "error", "code": "<stable_code>", "message": "..."}`:
+
+- Validation failures use `code: "invalid_input"` — including paths that previously raised protocol-level errors (unparseable datetime filters on `lithos_list`, `lithos_agent_list`, `lithos_finding_list`).
+- **Error envelopes no longer include a `warnings` key.**
+- Deliberately unchanged: actionable write outcomes keep their own top-level `status` (`version_conflict` with `current_version`, `duplicate`, `slug_collision`, `path_collision`), all success shapes, and the `{"success": ...}` claim envelopes.
+- **Migration:** replace `status == "invalid_input"` branches with `status == "error" and code == "invalid_input"` (except on `lithos_write`/`lithos_note_update`, where the code remains the status). This partially reverses 0.3.0's error-status promotion. Full guide: [Envelopes, Errors & IDs](concepts/envelopes.md#migrating-older-clients).
+
+### Added — task graph (Phases 1–3)
+
+Dependencies became first-class edges (`task_edges` table + `task_type` column), adding six tools — [`lithos_task_edge_upsert`](mcp-tools/task-graph.md#lithos_task_edge_upsert), [`lithos_task_edge_list`](mcp-tools/task-graph.md#lithos_task_edge_list), [`lithos_task_ready`](mcp-tools/task-graph.md#lithos_task_ready), [`lithos_task_blocked`](mcp-tools/task-graph.md#lithos_task_blocked), [`lithos_task_children`](mcp-tools/task-graph.md#lithos_task_children), [`lithos_task_spawn`](mcp-tools/task-graph.md#lithos_task_spawn) (PRs #342, #343, #356):
+
+- Edge types `blocks`, `parent_child`, `discovered_from`, `waits_on_gate`; cycle-checked on write.
+- `lithos_task_create` gains `task_type` (`task`/`epic`/`gate`), `depends_on`, `parent_task_id`; `lithos_task_complete` returns `unblocked`.
+- **Gates** model external waits (`human`/`timer`/`ci`/`pr`/`external_task`) — Lithos never polls; timer gates auto-resolve at query time.
+- A cancelled predecessor leaves dependents `blocker_unsatisfiable`, never spuriously ready.
+- **Breaking:** `metadata.depends_on`/`blocked_on` are rejected with `invalid_metadata_key`; a one-time migration backfilled existing conventions into `blocks` edges.
+
+### Added — lifecycle & notes
+
+- **[`lithos_task_reopen`](mcp-tools/tasks.md#lithos_task_reopen)** (PR #357): terminal tasks return to `open`, with a `reblocked` list, a durable `[Reopened]` finding, and a `task.reopened` event. `lithos_task_update` now works on terminal tasks (#303).
+- **[`lithos_note_update`](mcp-tools/knowledge-write.md#lithos_note_update)** (PR #363): patch a note's frontmatter (tags/metadata/title/status) without resending the body.
+
+With these, the tool count reached **37**.
+
+### Changed
+
+- Python **3.12** is now required (PR #365).
+
+---
+
+## v0.3.3
+
+**Released:** 2026-06-10 · [GitHub Release](https://github.com/agent-lore/lithos/releases/tag/v0.3.3)
+
+Packaging fix (PR #338): the published wheel no longer carries the spaCy model as a direct-URL dependency (which broke `pip install lithos-mcp`). The `en_core_web_sm` model is downloaded on first use instead.
+
+---
+
+## v0.3.2
+
+**Released:** 2026-06-09 · [GitHub Release](https://github.com/agent-lore/lithos/releases/tag/v0.3.2)
+
+### Breaking
+
+- **Transport `sse` renamed to `http` (PR #304)** — no back-compat alias. `lithos serve --transport http` now serves **both** `POST /mcp` (StreamableHTTP, stateless) and `GET /sse` (legacy) on one port; any compliant MCP client connects without a bridge. Update CLI invocations, systemd units, and compose overrides.
+
+### Added
+
+- **Entity extraction (PRs #313, #321, #329):** wiki-links + spaCy NER + corroborated heuristics populate an `entities` frontmatter list, with extractor provenance so agent-curated entities are never clobbered. New CLI command `lithos extract-entities`.
+- **`entities` filter on `lithos_search` and `lithos_list` (PRs #316, #319):** exact-match AND filtering, inverted-index backed; entities also boost full-text ranking.
+
+### Fixed
+
+- `lithos_cache_lookup` no longer crashes when a candidate has `confidence: null`; confidence is healed on read and validated on write (PR #314).
+- The Docker image bakes in the embedding model and loads it offline — no more HuggingFace rate-limit failures at container start.
+
+---
+
+## v0.3.1
+
+**Released:** 2026-06-05 · [GitHub Release](https://github.com/agent-lore/lithos/releases/tag/v0.3.1) · [PyPI](https://pypi.org/project/lithos-mcp/0.3.1/)
+
+First PyPI release: `pip install lithos-mcp`.
+
+### Added
+
+- **Free-form `metadata` on knowledge notes (PR #305):** arbitrary key/values persisted to frontmatter via `lithos_write(metadata=...)`, returned by `lithos_read`/`lithos_list`. Update semantics: omit preserves, `{}` clears, non-empty merges per key with `null` deleting a key.
+- **`metadata_match` filter on `lithos_list` and `lithos_task_list` (PR #306):** AND across keys; matches scalar equality or list containment; index-backed on notes, SQL-pushed on tasks.
+
+---
+
+## v0.3.0
+
+**Released:** 2026-05-27 · [GitHub Release](https://github.com/agent-lore/lithos/releases/tag/v0.3.0)
+
+### Breaking
+
+- **`tasks.completed_at` renamed to `resolved_at` (PR #288)** — now written on *both* terminal transitions (complete and cancel), with an in-place schema migration. `lithos_task_list` gains a `resolved_since` filter; the `task.completed` event field renamed to match.
+- **`lithos_task_update(metadata=...)` became an additive per-key merge (PR #291):** `{"key": null}` deletes a key, unmentioned keys are preserved, `{}` is a no-op; there is no wholesale clear. Runs in a single transaction so concurrent writers on different keys can't clobber each other.
+- **Write error codes promoted to top-level `status` (PR #217):** `lithos_write` failures became `status="slug_collision"` etc. *(Partially reversed for other tools by 0.4.0's canonical envelope — see above.)*
+
+### Added
+
+- **`lithos_task_get` (PR #294):** single-task fetch with the full record and an explicit `task_not_found` envelope; `lithos_task_status` widened to the same field set.
+- **`lithos_task_list(with_claims=true)` (PR #221):** inline active claims per task in one batched query.
+- **`metadata` on tasks (PR #216)** — arbitrary JSON at create time.
+
+### Fixed
+
+- `lithos_write(path="a/b.md")` treats a `.md`-terminated path as the complete filename instead of silently creating a directory named `b.md` (PR #301).
+- File-watcher events carry the canonical `{id, title, path}` payload, so external Obsidian edits are no longer dropped by id-filtering consumers (PR #298); external renames preserve the document id.
+- `task.updated` events are actually emitted (PR #284).
+
+---
+
 ## v0.2.1
 
 **Released:** 2026-04-18 · [GitHub Release](https://github.com/agent-lore/lithos/releases/tag/v0.2.1) · [PyPI](https://pypi.org/project/lithos-mcp/0.2.1/) · [Docker Hub](https://hub.docker.com/r/davesnowdon/lithos/tags)
