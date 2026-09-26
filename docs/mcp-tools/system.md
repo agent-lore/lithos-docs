@@ -52,7 +52,7 @@ lithos_stats()
 
 When run with `--transport http`, one port serves both MCP transports — `POST /mcp` (StreamableHTTP, stateless) and `GET /sse` + `POST /messages/` (legacy SSE) — plus these three routes. They are **not** MCP tools and do not appear in `tools/list`.
 
-There is **no `GET /metrics`** — metrics are pushed via OTLP; see [Observability](../deployment/observability.md).
+There is **no `GET /metrics`** — metrics are pushed via OTLP; see [Observability](../deployment/observability.md). <!-- drift-allow -->
 
 ### `GET /health`
 

@@ -134,7 +134,7 @@ To find documents with a specific tag, use `lithos_list(tags=["tag-name"])`.
 Composite "what is this document related to?" view. Merges wiki-link navigation, derived-from provenance, and typed LCMA edges into a single response.
 
 !!! note
-    This tool replaced the separate `lithos_links` and `lithos_provenance` tools (removed in v0.2.1). For edge-table queries not centred on a single document (e.g. "list all `contradicts` edges"), use [`lithos_edge_list`](graph-edges.md#lithos_edge_list).
+    This tool replaced the separate `lithos_links` and `lithos_provenance` tools (removed in v0.2.1). <!-- drift-allow --> For edge-table queries not centred on a single document (e.g. "list all `contradicts` edges"), use [`lithos_edge_list`](graph-edges.md#lithos_edge_list).
 
 ```python
 lithos_related(id: str, include: list[str] | None = None,
