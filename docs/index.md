@@ -55,7 +55,7 @@ Wiki-links (`[[note]]`) build a NetworkX graph automatically. Traverse relations
 <div class="icon">🔌</div>
 **MCP native**
 
-Exposes 37 tools via the Model Context Protocol over stdio or HTTP (StreamableHTTP + legacy SSE on one port). Add Lithos to any MCP-compatible agent in seconds — no SDK required.
+Exposes 38 tools via the Model Context Protocol over stdio or HTTP (StreamableHTTP + legacy SSE on one port). Add Lithos to any MCP-compatible agent in seconds — no SDK required.
 </div>
 
 <div class="feature-card" markdown>
@@ -206,7 +206,7 @@ How Lithos stores, indexes, and retrieves knowledge.
 <div class="icon">🔧</div>
 **[MCP Tools](mcp-tools/index.md)**
 
-Full reference for all 37 MCP tools.
+Full reference for all 38 MCP tools.
 </div>
 
 </div>

@@ -22,7 +22,7 @@ docker run -d --name lithos -p 8765:8765 -v /path/to/kb:/data \
   -e LITHOS_DATA_DIR=/data davesnowdon/lithos:latest
 ```
 
-(Version-pinned tags are published per release, e.g. `davesnowdon/lithos:0.4.0`.)
+(Version-pinned tags are published per release, e.g. `davesnowdon/lithos:0.5.0`.)
 
 ## The shipped docker-compose.yml
 

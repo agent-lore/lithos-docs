@@ -18,7 +18,9 @@ lithos_agent_register(id: str, name: str | None = None,
 | `type` | string | Agent type, e.g. `"claude-code"`, `"agent-zero"`, `"openclaw"`, `"custom"` |
 | `metadata` | object | Additional metadata (capabilities, version, …) |
 
-**Returns:** `{"success": true, "created": true}` for a new agent; `{"success": true, "created": false}` when the agent already existed (metadata updated, `last_seen_at` refreshed). Emits `agent.registered`.
+**Returns:** `{"success": true, "created": true, "warnings": []}` for a new agent; `{"success": true, "created": false, "warnings": []}` when the agent already existed (metadata updated, `last_seen_at` refreshed). Emits `agent.registered`.
+
+**Name collisions warn, never block.** *(since v0.5.0)* When another *active* agent already has the same `name` (case-insensitive), `warnings` lists each one — `"name 'Researcher' is also used by agent 'claude-code-researcher'"`. Registration still succeeds: distinct running instances legitimately share a display name. Registering an archived id clears its `archived_at`.
 
 **ID conventions:** pick stable, descriptive ids — `<harness>-<role>` (`claude-code-researcher`) or `<host>-<harness>` work well. The id is your identity across knowledge authorship, claims, and findings.
 
@@ -32,7 +34,7 @@ Get information about an agent.
 lithos_agent_info(id: str)
 ```
 
-**Returns:** `{ id, name, type, first_seen_at, last_seen_at, metadata }`, or `null` when the agent is unknown (note: not an error envelope).
+**Returns:** `{ id, name, type, first_seen_at, last_seen_at, archived_at, metadata }`, or `null` when the agent is unknown (note: not an error envelope). `archived_at` *(since v0.5.0)* is `null` while the agent is active; archived agents stay readable here even though they drop out of `lithos_agent_list`.
 
 ---
 
@@ -41,15 +43,40 @@ lithos_agent_info(id: str)
 List all known agents.
 
 ```python
-lithos_agent_list(type: str | None = None, active_since: str | None = None)
+lithos_agent_list(type: str | None = None, active_since: str | None = None,
+                  include_archived: bool = False)
 ```
 
 | Name | Type | Description |
 |------|------|-------------|
 | `type` | string | Filter by agent type |
 | `active_since` | string | Only agents seen since (ISO 8601; unparseable → `invalid_input`) |
+| `include_archived` | bool | *(since v0.5.0)* Also list agents retired with `lithos_agent_archive` (default: active only) |
 
-**Returns:** `{ "agents": [{ id, name, type, last_seen_at }] }`
+**Returns:** `{ "agents": [{ id, name, type, last_seen_at, archived_at }] }` — `archived_at` is `null` for active agents.
+
+---
+
+## `lithos_agent_archive`
+
+*(since v0.5.0)* Retire an agent from the roster. Use it to clean up ids that were auto-registered by a single write and never seen again.
+
+```python
+lithos_agent_archive(id: str, agent: str)
+```
+
+| Name | Type | Description |
+|------|------|-------------|
+| `id` | string | Agent to archive |
+| `agent` | string | Agent performing the archive (audit trail; self-archive is allowed) |
+
+**Returns:** `{"success": true, "id": "…", "archived_at": "…", "already_archived": false}`; idempotent — a second call returns `already_archived: true` with the original stamp. Unknown id → `{status: "error", code: "agent_not_found"}`. Emits `agent.archived` when newly archived.
+
+**What archiving does — and does not — do:**
+
+- The agent drops out of `lithos_agent_list` (unless `include_archived=True`) and out of the `agents` count in `lithos_stats`.
+- Its history is untouched: tasks, claims, findings, and access-log rows still attribute to it, and `lithos_agent_info` still returns it (with `archived_at` set).
+- **Any activity resurrects it.** Every write by that id — any tool that takes `agent`, and `lithos_agent_register` — clears `archived_at`. "Archived" means exactly "no activity since archiving". This includes tool-name fallback ids such as `lithos_edge_upsert`, which an un-attributed edge upsert brings back.
 
 ---
 

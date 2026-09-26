@@ -186,4 +186,4 @@ Data directory: /path/to/lithos/data
 - [Configuration](configuration.md) — set your data directory, adjust semantic search thresholds
 - [Concepts: Memory Model](../concepts/memory-model.md) — understand how write/search/list fit together
 - [Envelopes, Errors & IDs](../concepts/envelopes.md) — how tools report outcomes and how to branch on them
-- [MCP Tools Reference](../mcp-tools/index.md) — all 37 tools documented
+- [MCP Tools Reference](../mcp-tools/index.md) — all 38 tools documented

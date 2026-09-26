@@ -38,6 +38,7 @@ lithos_stats()
 | Field | Meaning |
 |-------|---------|
 | `documents` | Markdown documents in the corpus |
+| `agents` | *Active* registered agents — those retired with `lithos_agent_archive` are excluded (since v0.5.0) |
 | `chroma_chunk_count` | Semantic chunks in ChromaDB (0 when the store is quarantined) |
 | `tantivy_doc_count` | Documents in the full-text index; `null` when the index is unavailable (distinct from 0) |
 | `index_drift_detected` | `tantivy_doc_count` disagrees with `documents` — run `lithos reindex` |

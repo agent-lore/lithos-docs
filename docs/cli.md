@@ -213,8 +213,9 @@ Lifts every node whose salience decayed below the floor back up to it — except
 # Server health (exit code 0/1)
 lithos inspect health
 
-# List all registered agents
+# List active agents (--include-archived adds agents retired via lithos_agent_archive)
 lithos inspect agents
+lithos inspect agents --include-archived
 
 # List tasks (open by default; --all includes closed)
 lithos inspect tasks --all

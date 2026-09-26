@@ -4,13 +4,35 @@ All notable changes to Lithos are documented here. The full changelog is maintai
 
 ---
 
-## Unreleased (on `main`)
+## v0.5.0
 
-Shipped on `main` after the v0.4.0 tag; running in source/`main`-built deployments today.
+**Released:** 2026-09-26 · [GitHub Release](https://github.com/agent-lore/lithos/releases/tag/v0.5.0) · [PyPI](https://pypi.org/project/lithos-mcp/0.5.0/) · [Docker Hub](https://hub.docker.com/r/davesnowdon/lithos/tags)
+
+Install:
+```bash
+pip install lithos-mcp==0.5.0
+# or
+docker pull davesnowdon/lithos:0.5.0
+```
+
+LCMA phase-3 groundwork (salience recalibration, an LLM-synthesis substrate and typed-edge inference), agent-roster hygiene, optimistic concurrency on tasks, and short id prefixes everywhere. The tool surface grows from 37 to 38 (`lithos_agent_archive`); none removed. Full detail in the repo [CHANGELOG](https://github.com/agent-lore/lithos/blob/v0.5.0/CHANGELOG.md).
+
+### Behaviour changes — read before upgrading
+
+Permitted by the pre-1.0 compatibility policy (`SPECIFICATION.md §1.4`).
+
+- **Error codes tightened for unknown ids (PR #412).** A 6–35-char task id matching nothing now returns `task_not_found` on *every* task tool — claim/renew/release used to say `claim_failed`/`claim_not_found`, and status/edge_list/children/finding_list used to return silently empty. An id under 6 chars matching nothing exactly is `invalid_input`. `lithos_write` with an unknown `id` returns a `note_not_found` envelope instead of a protocol-level error.
+- **SSE consumers must handle `event: resync` (PR #400).** `GET /events` now announces when a reconnecting client's `Last-Event-ID` fell off the replay buffer. Clients that ignore it miss events exactly as before — the difference is the gap is now visible.
+- **`lcma.llm_provider` is removed (PR #405)**, replaced by the `lcma.llm` block. The old field was never read; a `LITHOS_LCMA__LLM_PROVIDER` env var now has no effect.
+- **Salience decay stops at a floor (PR #402)** — `lcma.salience_floor`, default 0.3 — instead of decaying to zero, and a usage signal enters reranking. Ranking on existing corpora shifts; run `lithos recalibrate-salience` once (dry-run first) to lift collapsed rows.
+- **Three idempotent startup migrations** on an existing `coordination.db`/`edges.db`: `agents.archived_at`, `tasks.updated_at` (backfilled from `COALESCE(resolved_at, created_at)`), and the `llm_budget`/`edge_inference_log` ledger tables. Rolling back to 0.4.0 is safe — the older code ignores the extra columns and tables.
 
 ### Added
 
 - **Short ID prefixes accepted everywhere (PR #412):** every task/note id parameter takes an unambiguous git-style prefix (≥ 6 chars). Ambiguity fails loudly with the new `ambiguous_id_prefix` code carrying up to 5 `{id, title}` candidates; mutating responses now echo the resolved full id + title. Behaviour tightened along the way: unknown 6–35-char task prefixes return `task_not_found` on *every* task tool (previously `claim_failed`/`claim_not_found`/silently empty), and `lithos_write` with an unknown `id` returns a `note_not_found` envelope instead of a protocol-level error. See [Envelopes, Errors & IDs](concepts/envelopes.md#short-id-prefixes).
+- **`lithos_task_update` compare-and-set + tag set operations (PR #419):** `expected_updated_at` guards a write with the stamp from a prior read; on mismatch nothing is written and the tool returns `{status: "error", code: "version_conflict", current_updated_at}`. New `add_tags`/`remove_tags` edit the tag list as set operations under the write transaction, so incremental tag edits from stale reads compose instead of clobbering. See [Tasks](mcp-tools/tasks.md#lithos_task_update).
+- **`lithos_agent_archive` (PR #426):** retires an agent from the roster while keeping its history; any later activity by that id resurrects it. `lithos_agent_list(include_archived=True)` shows archived agents, every agent row carries `archived_at`, `lithos inspect agents --include-archived` matches, and `lithos_agent_register` now returns a `warnings` list naming other active agents with the same display name (registration never blocks). See [Agent & Finding Tools](mcp-tools/agents-findings.md#lithos_agent_archive).
+- **`lithos_read` returns `path` (PR #428):** the note's file path relative to `knowledge/`, identical to what `lithos_list` reports, for reads by `id` and by `path` alike — a client reading by id can finally learn where a note lives.
 - **`updated_at` on task records (PR #416):** last-modified stamp bumped by every task-row write (create/update/complete/cancel/reopen — claims never bump it), returned by all task-fetching tools, carried in row-mutating events, and echoed by mutating responses. Compare stamps for equality to detect concurrent edits. Existing databases are migrated in place.
 - **`lithos_retrieve` degradation signal (PR #397):** responses always carry `degraded` and `failed_scouts`, so callers can distinguish partial results (a backend down) from an empty corpus. New alertable metric `lithos.lcma.scout.failures`.
 - **Salience recalibration (PR #402):** decay now bottoms out at `lcma.salience_floor` (default 0.3) instead of zero; new non-decaying `usage_score` result field feeds reranking; new `lithos recalibrate-salience` CLI command backfills collapsed databases; decay/reinforcement constants became config fields.
@@ -20,7 +42,8 @@ Shipped on `main` after the v0.4.0 tag; running in source/`main`-built deploymen
 ### Fixed
 
 - **Bare YAML dates in frontmatter broke indexing (PR #411):** an unquoted `created: 2026-07-30` could silently drop notes from search — and after an internal refactor, crash the startup rebuild. Both YAML ingestion points now normalize date objects; hand-edited frontmatter can no longer abort the startup scan.
-- **Docker: `LITHOS_LCMA__LLM__*` env vars are now forwarded into the container (PRs #409, #410)**, and `llm.max_output_tokens` default raised 1024 → 4096 for reasoning models.
+- **Docker: the whole `LITHOS_LCMA__LLM__*` family is now forwarded into the container (PRs #409, #410)** — previously LLM synthesis stayed silently disabled in compose-managed deployments — and `llm.max_output_tokens` default raised 1024 → 4096 so reasoning models don't exhaust the cap on hidden reasoning. Blank pass-through values are treated as unset (`env_ignore_empty`).
+- **Bare YAML dates** entry above also fixes a startup crash introduced after 0.4.0 by the corpus-index extraction — hand-edited frontmatter can no longer abort the startup scan.
 
 ---
 
