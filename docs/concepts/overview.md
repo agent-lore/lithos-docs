@@ -10,7 +10,7 @@ Lithos provides:
 2. **Fast search** — full-text, semantic, and cognitive retrieval over the entire KB
 3. **A knowledge graph** — wiki-link relationships, provenance lineage, and typed edges
 4. **Coordination primitives** — tasks with claims, findings, dependencies, epics, and gates
-5. **An MCP interface** — 37 tools accessible from any MCP-compatible agent
+5. **An MCP interface** — 38 tools accessible from any MCP-compatible agent
 
 ---
 

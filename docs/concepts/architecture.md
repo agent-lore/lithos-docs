@@ -61,7 +61,7 @@ The full, drift-checked component view (17 components across three tiers, with d
 
 ### MCP Server (FastMCP)
 
-The entry point for all agent interactions. Exposes 37 tools via:
+The entry point for all agent interactions. Exposes 38 tools via:
 
 - **stdio** — process-based, for local MCP clients (Claude Desktop)
 - **http** — one port serving both `POST /mcp` (StreamableHTTP, MCP 2025-03-26+, **stateless**) and `GET /sse` (legacy SSE), plus the `/health`, `/events`, and `/audit` routes

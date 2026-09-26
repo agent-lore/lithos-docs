@@ -20,7 +20,7 @@ Every task-returning tool uses the same record shape:
 - **`task_type`:** `task` (default), `epic` (roll-up container), or `gate` (external wait) — see [Task Graph](task-graph.md).
 - **`resolved_at`** is set on both terminal transitions (complete *and* cancel); `null` while open.
 - **`outcome`** holds the free-text completion summary; `null` until completed with one.
-- **`updated_at`** *(since v0.4.0, unreleased)* is bumped by every task-**row** write — create, update (even a no-op `metadata={}` merge), complete, cancel, reopen. Claim/renew/release never bump it, so lease heartbeats can't masquerade as edits. Mutating responses echo the stamp the write produced; detect "edited since X" by comparing stamps for **equality**, not ordering.
+- **`updated_at`** *(since v0.5.0)* is bumped by every task-**row** write — create, update (even a no-op `metadata={}` merge), complete, cancel, reopen. Claim/renew/release never bump it, so lease heartbeats can't masquerade as edits. Mutating responses echo the stamp the write produced; detect "edited since X" by comparing stamps for **equality**, not ordering.
 
 All `task_id` parameters accept an unambiguous ≥6-char [short ID prefix](index.md#short-id-prefixes); an unknown 6–35-char prefix returns `task_not_found` on every task tool.
 
@@ -57,14 +57,20 @@ Update mutable task fields. **Works on terminal tasks too** — useful for annot
 ```python
 lithos_task_update(task_id: str, agent: str, title: str | None = None,
                    description: str | None = None, tags: list[str] | None = None,
-                   metadata: dict | None = None)
+                   metadata: dict | None = None,
+                   add_tags: list[str] | None = None, remove_tags: list[str] | None = None,
+                   expected_updated_at: str | None = None)
 ```
 
-At least one of `title`, `description`, `tags`, `metadata` must be provided (`invalid_input` otherwise).
+At least one of `title`, `description`, `tags`, `metadata`, `add_tags`, `remove_tags` must be provided (`invalid_input` otherwise).
+
+**Tag set operations** *(since v0.5.0)*: `add_tags` appends without duplicates and `remove_tags` drops entries, preserving order — applied read-modify-write inside the write transaction, so incremental tag edits from stale reads compose instead of clobbering. They are mutually exclusive with the wholesale `tags` replace and must not overlap each other (`invalid_input`).
+
+**Compare-and-set** *(since v0.5.0)*: pass `expected_updated_at` — the `updated_at` from a prior read or update echo, compared byte-for-byte. On mismatch nothing is written, no event is emitted, and the tool returns `{"status": "error", "code": "version_conflict", "message": "…", "current_updated_at": "…"}` so you can retry from the current stamp without re-reading. Without the token, behaviour is last-writer-wins as before. Note the dialect difference from notes: the task-side conflict is an *error envelope*, while `lithos_write`/`lithos_note_update` keep `version_conflict` as a top-level status. Every task-row mutation commits a stamp strictly greater than the previous one, so a token is invalidated by *any* intervening write even if the clock repeats.
 
 **Metadata is an additive per-key merge:** non-null values overwrite, `{"key": null}` deletes that key, unmentioned keys are preserved. `metadata={}` preserves everything (though it still writes the row and bumps `updated_at`). There is no wholesale clear. The merge runs in a single transaction, so concurrent writers on different keys never clobber each other. `depends_on`/`blocked_on` keys → `invalid_metadata_key`.
 
-**Returns:** `{"success": true, "message": "…", "task_id": "…", "title": "…", "updated_at": "…"}` or an error envelope (`invalid_input`, `invalid_metadata_key`, `task_not_found`). Emits `task.updated`.
+**Returns:** `{"success": true, "message": "…", "task_id": "…", "title": "…", "updated_at": "…"}` or an error envelope (`invalid_input`, `invalid_metadata_key`, `task_not_found`, `version_conflict`). Emits `task.updated`.
 
 ---
 

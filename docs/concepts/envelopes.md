@@ -20,7 +20,7 @@ Three rules follow from it:
 2. **Validation failures are `code: "invalid_input"`** — including paths that used to raise protocol-level errors, such as unparseable datetime filters on `lithos_list(since=...)`, `lithos_agent_list(active_since=...)`, and `lithos_finding_list(since=...)`.
 3. **Error envelopes carry no `warnings` key.** If your client reads `warnings` off error responses, stop — the key exists only on write-path *status* envelopes.
 
-Some codes append documented extra keys after the three canonical ones (`ambiguous_id_prefix` adds `candidates`; `version_conflict` adds `current_version`) — extras may never override the canonical keys.
+Some codes append documented extra keys after the three canonical ones (`ambiguous_id_prefix` adds `candidates`; the task-side `version_conflict` adds `current_updated_at`) — extras may never override the canonical keys.
 
 Protocol-level MCP errors (`ToolError`) still exist, but only for two cases: the MCP schema rejecting a call before the handler runs, and genuine internal bugs. Everything anticipatable comes back as an envelope your code can branch on.
 
@@ -62,7 +62,7 @@ The loop terminates because each retry starts from the newest version; the confl
 
 ## Short ID prefixes
 
-!!! tip "Since v0.4.0 (unreleased)"
+!!! tip "Since v0.5.0"
 
 Every task and note id parameter accepts an **unambiguous short prefix**, minimum 6 characters — the git idiom. `lithos_task_get(task_id="83257ced")` just works.
 
@@ -78,7 +78,7 @@ Every task and note id parameter accepts an **unambiguous short prefix**, minimu
 
 ## Change detection: `updated_at`
 
-!!! tip "Since v0.4.0 (unreleased)"
+!!! tip "Since v0.5.0"
 
 Task records carry an `updated_at` last-modified stamp:
 
@@ -86,6 +86,7 @@ Task records carry an `updated_at` last-modified stamp:
 - **Never bumped by claim/renew/release** — lease heartbeats touch only the claims table, so they can't masquerade as edits.
 - Returned by `lithos_task_get`/`lithos_task_list`/`lithos_task_status` (and the ready/blocked/children views), carried in row-mutating event payloads, and **echoed by every mutating response** — record your own write's stamp without a racy re-read.
 - Detect "edited since I last looked" by comparing stamps for **equality** with the one you recorded. A different stamp means someone wrote the row; don't rely on ordering.
+- **Guard a write with it.** Pass the stamp as `expected_updated_at` on `lithos_task_update`; on mismatch nothing is written and you get `{status: "error", code: "version_conflict", current_updated_at}` — retry from `current_updated_at` without re-reading. This is the task-side twin of the note `expected_version` loop above, with one dialect difference: notes report `version_conflict` as a top-level *status*, tasks as an *error envelope*. Prefer `add_tags`/`remove_tags` over a wholesale `tags` replace when you only need to touch the tag list — they compose under contention without a token.
 
 ## Migrating older clients
 

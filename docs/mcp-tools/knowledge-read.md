@@ -20,8 +20,9 @@ lithos_read(id: str | None = None, path: str | None = None,
 
 *One of `id` or `path` is required.
 
-**Returns:** `{ id, title, content, metadata, links, truncated, retrieval_count }`
+**Returns:** `{ id, title, path, content, metadata, links, truncated, retrieval_count }`
 
+- `path` *(since v0.5.0)* is the note's file path relative to `knowledge/` — the same value `lithos_list` reports — whether you read by `id` or by `path`. Use it to decide where a note lives (e.g. under `projects/<slug>/`).
 - `metadata` includes the reserved frontmatter fields, `derived_from_ids`, and `extra` — the free-form metadata dict written via `lithos_write(metadata=...)`.
 - `truncated: true` when `max_length` shortened the content (cut at the nearest paragraph/sentence boundary).
 - Unknown id/path → `{status: "error", code: "doc_not_found", message}`.

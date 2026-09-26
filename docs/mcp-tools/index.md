@@ -1,9 +1,9 @@
 # MCP Tools Reference
 
-Lithos exposes **37 MCP tools**. All tools are available on every transport: stdio, StreamableHTTP (`POST /mcp`), and legacy SSE (`GET /sse`).
+Lithos exposes **38 MCP tools**. All tools are available on every transport: stdio, StreamableHTTP (`POST /mcp`), and legacy SSE (`GET /sse`).
 
-!!! info "v0.4.0"
-    This reference reflects **v0.4.0** plus the changes shipped on `main` since the tag (marked "unreleased" where relevant). The 0.4.0 release made one breaking change: every tool **failure** now uses the canonical error envelope described [below](#error-envelope). Nine task-graph and note-patch tools were added in 0.4.0; none were removed.
+!!! info "v0.5.0"
+    This reference reflects **v0.5.0** plus any changes shipped on `main` since the tag (marked "unreleased" where relevant). 0.5.0 added `lithos_agent_archive` and tightened error codes for unknown ids (see [Short ID Prefixes](#short-id-prefixes)); the 0.4.0 release made one breaking change: every tool **failure** uses the canonical error envelope described [below](#error-envelope). None were removed.
 
 ## Tool Categories
 
@@ -80,13 +80,14 @@ Lithos exposes **37 MCP tools**. All tools are available on every transport: std
 
     → [Task Graph Tools](task-graph.md)
 
-=== "Agents & findings (5)"
+=== "Agents & findings (6)"
 
     | Tool | Description |
     |------|-------------|
     | [`lithos_agent_register`](agents-findings.md#lithos_agent_register) | Explicitly register an agent |
     | [`lithos_agent_info`](agents-findings.md#lithos_agent_info) | Get info about a specific agent |
     | [`lithos_agent_list`](agents-findings.md#lithos_agent_list) | List all known agents |
+    | [`lithos_agent_archive`](agents-findings.md#lithos_agent_archive) | Retire an agent from the roster (history kept) |
     | [`lithos_finding_post`](agents-findings.md#lithos_finding_post) | Post a finding to a task |
     | [`lithos_finding_list`](agents-findings.md#lithos_finding_list) | List findings for a task |
 
@@ -169,7 +170,7 @@ Write-path top-level statuses (`lithos_write`/`lithos_note_update` only): `creat
 
 ## Short ID Prefixes
 
-!!! tip "Since v0.4.0 (unreleased)"
+!!! tip "Since v0.5.0"
 
 Every tool parameter that takes a task or note id also accepts an **unambiguous short prefix** — minimum 6 characters, the git idiom:
 
