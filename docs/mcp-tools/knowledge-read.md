@@ -73,6 +73,7 @@ lithos_search(query: str, limit: int = 10, mode: str = "hybrid",
 **Notes:**
 
 - Search operates on chunks internally but returns deduplicated documents.
+- **Filters scope the ranking** (since v0.6.0). In `fulltext`, `semantic` and `hybrid` modes, `path_prefix`, `tags`, `author` and `entities` are resolved to a set of documents first, and the search ranks only inside that set. A small area, such as one agent's few notes among thousands, therefore gets its own best matches. Before 0.6.0 the filters were applied after ranking the whole knowledge base, which could leave a narrow scoped search empty. `path_prefix` is a plain string prefix. `graph` mode is unchanged; there, `entities` still filters the traversal's results.
 - Entity names are indexed in Tantivy and included in the default query fields — query terms matching a document's entities boost its ranking.
 - Invalid `mode` → `{status: "error", code: "invalid_mode", message}`.
 - Every returned document is recorded in the read-access audit log.

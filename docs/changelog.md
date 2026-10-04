@@ -4,6 +4,39 @@ All notable changes to Lithos are documented here. The full changelog is maintai
 
 ---
 
+## v0.6.0
+
+**Released:** 2026-10-04 · [GitHub Release](https://github.com/agent-lore/lithos/releases/tag/v0.6.0) · [PyPI](https://pypi.org/project/lithos-mcp/0.6.0/) · [Docker Hub](https://hub.docker.com/r/davesnowdon/lithos/tags)
+
+Install:
+```bash
+pip install lithos-mcp==0.6.0
+# or
+docker pull davesnowdon/lithos:0.6.0
+```
+
+Scoped search and retrieve now rank inside the requested scope, task edges can be deleted, and OpenRouter can attribute Lithos spend to its own app. The tool surface grows from 38 to 39 (`lithos_task_edge_delete`); none removed. Full detail in the repo [CHANGELOG](https://github.com/agent-lore/lithos/blob/v0.6.0/CHANGELOG.md).
+
+### Behaviour changes — read before upgrading
+
+Permitted by the pre-1.0 compatibility policy (`SPECIFICATION.md §1.4`).
+
+- **Scoped searches return different, better results (PRs #441–#443).** `lithos_search` in `fulltext`/`semantic`/`hybrid` mode now ranks inside `path_prefix`/`tags`/`author`/`entities`. So do `lithos_retrieve`'s vector and lexical scouts inside `namespace_filter`/`tags`/`path_prefix`. These filters used to apply after ranking the whole knowledge base, so a narrow scope, such as an agent's few notes, often came back empty. Callers that over-fetched to work around this (a large `limit`, `threshold=0`) can drop the workaround.
+- **Dependency floors.** `sentence-transformers>=5.4.0` (was 2.2.0) and `numpy>=1.22.5` are now declared.
+- **No migrations.** The new scope indexes are built in memory at startup, so rolling back to 0.5.0 is safe.
+
+### Added
+
+- **`lithos_task_edge_delete` (PR #436):** removes a `blocks`, `parent_child`, `waits_on_gate` or `discovered_from` edge. It's a hard delete keyed on `(from, to, type)`, and readiness and hierarchy update immediately. It's the way to re-parent a task (the `parent_exists` remedy) and to release a waiter from an unwanted gate without falsely completing it. New error code `edge_not_found`. See [Task Graph](mcp-tools/task-graph.md#lithos_task_edge_delete).
+- **OpenRouter app attribution (PR #440):** the LLM synthesis client sends `HTTP-Referer` and `X-OpenRouter-Title`, from the new `lcma.llm.app_url` / `lcma.llm.app_title` settings. See [Configuration](getting-started/configuration.md#lcmallm-background-synthesis).
+
+### Fixed
+
+- **Scoped `lithos_search` and `lithos_retrieve` (task 5002185d; PRs #441, #442, #443):** see the behaviour change above. Scoped semantic search chooses a strategy by the scope's size. A small scope (up to 200 notes and 2,000 chunks) is ranked exactly from its stored embeddings. Larger scopes widen an unfiltered pool first and fall back to a scope-filtered vector query, which keeps scoped latency close to unscoped on a 100k-chunk store.
+- **Embedding health probe (PR #438):** the probe no longer logs a `FutureWarning` from sentence-transformers on every `/health` call.
+
+---
+
 ## v0.5.0
 
 **Released:** 2026-09-26 · [GitHub Release](https://github.com/agent-lore/lithos/releases/tag/v0.5.0) · [PyPI](https://pypi.org/project/lithos-mcp/0.5.0/) · [Docker Hub](https://hub.docker.com/r/davesnowdon/lithos/tags)

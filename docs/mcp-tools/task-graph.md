@@ -51,8 +51,43 @@ lithos_task_edge_upsert(from_task_id: str, to_task_id: str, type: str,
 | `self_edge` | `from` == `to` |
 | `task_not_found` | Either endpoint missing |
 | `cycle` | Edge would create a blocking or ancestry cycle |
-| `parent_exists` | Child already has a different parent (hierarchy is a **forest** — re-parenting requires removing the existing edge first) |
+| `parent_exists` | Child already has a different parent (hierarchy is a **forest** — re-parent by removing the existing edge with [`lithos_task_edge_delete`](#lithos_task_edge_delete) first) |
 | `not_a_gate` | `waits_on_gate` whose `from` task is not a `gate` |
+
+---
+
+## `lithos_task_edge_delete`
+
+!!! tip "Since v0.6.0"
+
+Remove a typed relation between two tasks — the inverse of `lithos_task_edge_upsert`.
+
+```python
+lithos_task_edge_delete(from_task_id: str, to_task_id: str, type: str, agent: str)
+```
+
+| Name | Type | Description |
+|------|------|-------------|
+| `from_task_id` | string | Source task of the edge to remove |
+| `to_task_id` | string | Target task of the edge to remove |
+| `type` | string | Edge type — `(from_task_id, to_task_id, type)` identifies exactly one edge |
+| `agent` | string | Agent removing the edge |
+
+**Returns:** `{"success": true, "from_task_id": "…", "from_title": "…", "to_task_id": "…", "to_title": "…", "type": "blocks"}` (both endpoints resolved to full ids), or an error envelope:
+
+| Code | Meaning |
+|------|---------|
+| `invalid_edge_type` | Type not accepted |
+| `edge_not_found` | No such edge (also when a full-length endpoint id is unknown) |
+| `task_not_found` / `ambiguous_id_prefix` | Only from short-prefix resolution of an endpoint |
+
+It is a hard delete: the removal is recorded in the server log and the `coordination_ops` metric, not as a tombstone row. No validation applies beyond the edge existing, since removing an edge can't create a cycle, a second parent or a non-gate blocker.
+
+Readiness, blockers and hierarchy are computed at query time, so the effect is immediate:
+
+- **`blocks` or `waits_on_gate`:** the dependent may become ready at once. This is the way to release a waiter from an unwanted gate. Completing the gate would record a false outcome, and cancelling it leaves the waiter `blocker_unsatisfiable`.
+- **`parent_child`:** the child is detached and can be re-parented.
+- **`discovered_from`:** only the provenance link is dropped.
 
 ---
 
@@ -176,7 +211,7 @@ Other keys (`approval_required_from`, `provider`, `run_id`, `repo`, `pr_number`,
 - the gate task is **`completed`** (an agent observed the condition and completed it), or
 - it is an open `timer` gate whose `ready_at` has passed (evaluated at query time; no state change).
 
-A **cancelled** gate is unsatisfiable — its waiters show as `blocker_unsatisfiable`. "Proceed anyway" means completing the gate or removing the edge, not cancelling it. Completing a gate reports its newly-ready waiters in `unblocked`.
+A **cancelled** gate is unsatisfiable — its waiters show as `blocker_unsatisfiable`. "Proceed anyway" means completing the gate or removing the edge with [`lithos_task_edge_delete`](#lithos_task_edge_delete), not cancelling it. Completing a gate reports its newly-ready waiters in `unblocked`.
 
 **Example — hold a deploy behind CI and a human approval:**
 

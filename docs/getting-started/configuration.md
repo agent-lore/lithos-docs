@@ -141,6 +141,8 @@ lcma:
     min_similarity: 0.35
     max_similarity: 0.92
     snippet_chars: 700
+    app_url: https://github.com/agent-lore/lithos   # sent as HTTP-Referer (since v0.6.0)
+    app_title: lithos                               # sent as X-OpenRouter-Title (since v0.6.0)
 ```
 
 ---
@@ -188,6 +190,8 @@ How long a task claim lasts before expiring. Agents should renew claims with `li
 ### `lcma.llm` — background synthesis
 
 When `base_url` points at any OpenAI-compatible chat-completions endpoint (Ollama, llama.cpp, vLLM, or a hosted provider), the background enrichment worker uses it to infer typed edges between semantically-close notes, writing qualifying judgements into `edges.db` with `provenance_type: "inferred"`. Spend is bounded by `daily_token_budget` and `max_calls_per_drain`. **Unset `base_url` disables all LLM calls** — Lithos never contacts an LLM unless you configure one.
+
+`app_url` and `app_title` (since v0.6.0) are sent as the `HTTP-Referer` and `X-OpenRouter-Title` headers. OpenRouter uses them to report Lithos spend under its own app instead of "unknown"; other endpoints ignore them. OpenRouter identifies an app by its referer URL, so to see two deployments' spend separately (prod and staging, say), give each its own `app_url`, not just its own title. Both must be printable ASCII, and `app_url` must be an `http(s)://` URL. Set them per deployment with `LITHOS_LCMA__LLM__APP_URL` / `LITHOS_LCMA__LLM__APP_TITLE`.
 
 ---
 

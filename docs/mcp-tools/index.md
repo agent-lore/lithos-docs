@@ -1,9 +1,9 @@
 # MCP Tools Reference
 
-Lithos exposes **38 MCP tools**. All tools are available on every transport: stdio, StreamableHTTP (`POST /mcp`), and legacy SSE (`GET /sse`).
+Lithos exposes **39 MCP tools**. All tools are available on every transport: stdio, StreamableHTTP (`POST /mcp`), and legacy SSE (`GET /sse`).
 
 !!! info "v0.5.0"
-    This reference reflects **v0.5.0** plus any changes shipped on `main` since the tag (marked "unreleased" where relevant). 0.5.0 added `lithos_agent_archive` and tightened error codes for unknown ids (see [Short ID Prefixes](#short-id-prefixes)); the 0.4.0 release made one breaking change: every tool **failure** uses the canonical error envelope described [below](#error-envelope). None were removed.
+    This reference reflects **v0.6.0** plus any changes shipped on `main` since the tag (marked "unreleased" where relevant). 0.6.0 added `lithos_task_edge_delete` and made scoped searches rank inside the scope; 0.5.0 added `lithos_agent_archive` and tightened error codes for unknown ids (see [Short ID Prefixes](#short-id-prefixes)); the 0.4.0 release made one breaking change: every tool **failure** uses the canonical error envelope described [below](#error-envelope). None were removed.
 
 ## Tool Categories
 
@@ -67,11 +67,12 @@ Lithos exposes **38 MCP tools**. All tools are available on every transport: std
 
     → [Task Tools](tasks.md)
 
-=== "Task graph (6)"
+=== "Task graph (7)"
 
     | Tool | Description |
     |------|-------------|
     | [`lithos_task_edge_upsert`](task-graph.md#lithos_task_edge_upsert) | Create a typed relation between two tasks |
+    | [`lithos_task_edge_delete`](task-graph.md#lithos_task_edge_delete) | Remove a typed relation between two tasks |
     | [`lithos_task_edge_list`](task-graph.md#lithos_task_edge_list) | List edges touching a task |
     | [`lithos_task_ready`](task-graph.md#lithos_task_ready) | Open tasks that are ready to work (the feasible frontier) |
     | [`lithos_task_blocked`](task-graph.md#lithos_task_blocked) | Open tasks that are not ready, with structured blocker reasons |
@@ -153,7 +154,8 @@ Since v0.4.0, every tool **failure** returns exactly this canonical envelope:
 | `receipt_not_found` | `lithos_task_complete` | LCMA feedback references a missing or unrelated receipt |
 | `invalid_metadata_key` | task create/update/spawn | Metadata contains `depends_on`/`blocked_on` — dependencies are edges |
 | `invalid_task_type` | `lithos_task_create` | `task_type` not one of `task`/`epic`/`gate` |
-| `invalid_edge_type` | `lithos_task_edge_upsert` | Edge type not accepted |
+| `invalid_edge_type` | `lithos_task_edge_upsert`, `lithos_task_edge_delete` | Edge type not accepted |
+| `edge_not_found` | `lithos_task_edge_delete` | No edge with that `(from, to, type)` |
 | `invalid_relation_type` | `lithos_task_spawn` | `relation_type` not `discovered_from`/`blocks` |
 | `self_edge` | `lithos_task_edge_upsert` | Edge from a task to itself |
 | `cycle` | task edge writes | Edge would create a dependency or ancestry cycle |
