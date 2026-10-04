@@ -21,7 +21,7 @@ lithos_retrieve(query: str, limit: int = 10,
 |------|------|-------------|
 | `query` | string | Free-text query |
 | `limit` | int | Max results (default 10) |
-| `namespace_filter` | string[] | Restrict candidates to these LCMA namespaces |
+| `namespace_filter` | string[] | Restrict candidates to these LCMA namespaces. Since v0.6.0 the vector and lexical scouts rank inside the filtered set rather than filtering a global pool, so a small namespace is not crowded out. The same applies to `tags` and `path_prefix`. |
 | `agent_id` | string | Caller agent ID; used for `agent_private` access-scope gating |
 | `task_id` | string | Enables `scout_task_context`, `task`-scope gating, and working-memory upserts. A unique ≥6-char prefix of an existing task resolves; other values are used as free-form correlation keys. |
 | `surface_conflicts` | bool | Recorded in the receipt (contradiction surfacing activates in a later MVP) |

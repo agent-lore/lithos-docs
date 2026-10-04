@@ -27,7 +27,7 @@ Never transcribe from memory or from this site's own older pages — go to the c
 
 | Topic | Source |
 |-------|--------|
-| Tool list + signatures | `docs/generated/tool_catalog.md` — **generated and drift-checked in lithos CI**; the authoritative 37-tool catalog |
+| Tool list + signatures | `docs/generated/tool_catalog.md` — **generated and drift-checked in lithos CI**; the authoritative tool catalog (the drift check reads its count) |
 | Tool contracts / response shapes | `docs/SPECIFICATION.md` §5; §7 task-graph schema; §8 events/SSE; §9 CLI+config; §10 errors + short-ID rules |
 | Config reference | `src/lithos/config.py` (`LithosConfig`) — the only complete field list, incl. `lcma.*` and `lcma.llm.*` |
 | CLI commands/options | `src/lithos/cli.py` (the repo's own `docs/cli.md` has lagged before) |
@@ -41,7 +41,7 @@ Never transcribe from memory or from this site's own older pages — go to the c
 
 | Area | Files |
 |------|-------|
-| Tool reference | `docs/mcp-tools/` — 8 category pages: `knowledge-write` (write/note_update/delete), `knowledge-read` (read/search/list/tags/related), `retrieval` (retrieve/cache_lookup/node_stats), `graph-edges` (edge_upsert/edge_list/conflict_resolve), `tasks` (11 lifecycle tools), `task-graph` (6 graph tools + gates), `agents-findings`, `system` (stats + HTTP endpoints). A new tool goes in its category page **and** the tables in `mcp-tools/index.md`. |
+| Tool reference | `docs/mcp-tools/` — 8 category pages: `knowledge-write` (write/note_update/delete), `knowledge-read` (read/search/list/tags/related), `retrieval` (retrieve/cache_lookup/node_stats), `graph-edges` (edge_upsert/edge_list/conflict_resolve), `tasks` (11 lifecycle tools), `task-graph` (7 graph tools + gates), `agents-findings`, `system` (stats + HTTP endpoints). A new tool goes in its category page **and** the tables in `mcp-tools/index.md`. |
 | Concepts | `docs/concepts/` — overview, architecture, memory-model, **envelopes** (error contract, short IDs, migration notes) |
 | Getting started | `docs/getting-started/` + `docs/index.md` (home) + `docs/cli.md` |
 | Deployment | `docs/deployment/` — docker, self-hosted, observability |
