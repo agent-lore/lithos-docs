@@ -1,6 +1,6 @@
 site_name: Lithos
 site_url: https://getlithos.dev
-site_description: Shared memory for AI agents — a local, privacy-first knowledge base with MCP interface.
+site_description: Shared memory for AI agents — Lithos, the local privacy-first knowledge base with an MCP interface, and the ecosystem around it (Influx ingestion, Loom orchestration, Lens UI).
 site_author: agent-lore
 
 repo_url: https://github.com/agent-lore/lithos
@@ -98,40 +98,78 @@ markdown_extensions:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/agent-lore/lithos
-      name: Lithos on GitHub
+      link: https://github.com/agent-lore
+      name: agent-lore on GitHub
 
 extra_css:
   - assets/extra.css
 
 nav:
   - Home: index.md
-  - Getting Started:
-    - getting-started/index.md
-    - Installation: getting-started/installation.md
-    - Quickstart: getting-started/quickstart.md
-    - Configuration: getting-started/configuration.md
-  - Concepts:
-    - concepts/index.md
-    - Overview: concepts/overview.md
-    - Architecture: concepts/architecture.md
-    - Memory Model: concepts/memory-model.md
-    - Envelopes, Errors & IDs: concepts/envelopes.md
-  - MCP Tools:
-    - mcp-tools/index.md
-    - Knowledge Write: mcp-tools/knowledge-write.md
-    - Knowledge Read: mcp-tools/knowledge-read.md
-    - Retrieval (LCMA): mcp-tools/retrieval.md
-    - Graph Edges: mcp-tools/graph-edges.md
-    - Tasks: mcp-tools/tasks.md
-    - Task Graph: mcp-tools/task-graph.md
-    - Agents & Findings: mcp-tools/agents-findings.md
-    - System & HTTP: mcp-tools/system.md
-  - CLI Reference: cli.md
-  - Deployment:
-    - deployment/index.md
-    - Docker: deployment/docker.md
-    - Self-Hosted: deployment/self-hosted.md
-    - Observability: deployment/observability.md
-  - Contributing: contributing.md
-  - Changelog: changelog.md
+  - Lithos:
+    - Getting Started:
+      - getting-started/index.md
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+      - Configuration: getting-started/configuration.md
+    - Concepts:
+      - concepts/index.md
+      - Overview: concepts/overview.md
+      - Architecture: concepts/architecture.md
+      - Memory Model: concepts/memory-model.md
+      - Envelopes, Errors & IDs: concepts/envelopes.md
+    - MCP Tools:
+      - mcp-tools/index.md
+      - Knowledge Write: mcp-tools/knowledge-write.md
+      - Knowledge Read: mcp-tools/knowledge-read.md
+      - Retrieval (LCMA): mcp-tools/retrieval.md
+      - Graph Edges: mcp-tools/graph-edges.md
+      - Tasks: mcp-tools/tasks.md
+      - Task Graph: mcp-tools/task-graph.md
+      - Agents & Findings: mcp-tools/agents-findings.md
+      - System & HTTP: mcp-tools/system.md
+    - CLI Reference: cli.md
+    - Deployment:
+      - deployment/index.md
+      - Docker: deployment/docker.md
+      - Self-Hosted: deployment/self-hosted.md
+      - Observability: deployment/observability.md
+    - Changelog: changelog.md
+  - Influx:
+    - influx/index.md
+    - Getting Started: influx/getting-started.md
+    - Configuration: influx/configuration.md
+    - Pipeline: influx/pipeline.md
+    - Inbox: influx/inbox.md
+    - CLI Reference: influx/cli.md
+    - Operations: influx/operations.md
+    - Runbook: influx/runbook.md
+    - Changelog: influx/changelog.md
+  - Loom:
+    - loom/index.md
+    - Installation: loom/installation.md
+    - Concepts: loom/concepts.md
+    - story-develop: loom/story-develop.md
+    - Obsidian Bridge: loom/obsidian-bridge.md
+    - GitHub Watcher: loom/github-watcher.md
+    - CLI:
+      - loom/cli.md
+      - project import: loom/cli/project-import.md
+      - project regenerate-done: loom/cli/project-regenerate-done.md
+      - project GitHub subcommands: loom/cli/project-github-repos.md
+      - develop review: loom/cli/review.md
+      - develop converge: loom/cli/converge.md
+      - develop merge-gate: loom/cli/merge-gate.md
+      - develop deliver: loom/cli/deliver.md
+      - develop converge-push: loom/cli/converge-push.md
+      - develop resume: loom/cli/resume.md
+      - develop brief-review: loom/cli/brief-review.md
+    - Changelog: loom/changelog.md
+  - Lens:
+    - lens/index.md
+    - User Manual: lens/manual.md
+    - Changelog: lens/changelog.md
+  - Ecosystem:
+    - ecosystem/index.md
+    - Compatibility: ecosystem/compatibility.md
+    - Contributing: contributing.md
