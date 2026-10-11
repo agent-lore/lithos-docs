@@ -3,6 +3,13 @@ name: Deploy docs
 on:
   push:
     branches: [main]
+  # A source repo (lithos, influx, lithos-loom, lithos-lens) moved: rebuild so
+  # the build-time imports (sources.toml) and the deployed site follow it.
+  repository_dispatch:
+    types: [upstream-changed]
+  # Backstop for upstream pushes that did not dispatch.
+  schedule:
+    - cron: "30 6 * * 1" # Mondays 06:30 UTC, after the drift check
   workflow_dispatch:
 
 permissions:
@@ -26,6 +33,11 @@ jobs:
           cache: pip
 
       - run: pip install -r requirements.txt
+
+      - name: Pull build-time imports from the source repos
+        run: python3 scripts/sync_sources.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - run: mkdocs build --strict
         env:
