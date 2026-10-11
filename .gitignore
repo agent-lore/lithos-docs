@@ -3,3 +3,9 @@ site/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Build-time imports declared in sources.toml (scripts/sync_sources.py)
+docs/lens/manual.md
+docs/lens/screenshots/
+docs/loom/cli/
+docs/influx/runbook.md

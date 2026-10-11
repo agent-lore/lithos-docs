@@ -1,0 +1,40 @@
+# Files pulled verbatim from the ecosystem repos at build time by
+# scripts/sync_sources.py. Every `dest` here is gitignored: the site documents
+# each project's current `main`, so these are fetched fresh on every build
+# (CI) or by running the script locally before `mkdocs build`.
+#
+# Entry keys:
+#   repo       GitHub "owner/name"
+#   ref        branch or tag to fetch from (default: main)
+#   src        one upstream file                      -> dest
+#   src_dir    an upstream directory (non-recursive)  -> dest_dir, filtered by `pattern`
+#   pattern    glob applied to filenames in src_dir (default: "*")
+#   rewrite_links   rewrite relative markdown links (default: true for .md):
+#                   links to other imported files become relative links between
+#                   their dests; everything else becomes a GitHub blob URL.
+#   drop_lines_matching   regexes; matching lines are removed from a .md import
+#   title      overrides the first `# ` heading of a .md import
+#   banner     false suppresses the "pulled from upstream" admonition on a .md import
+
+[[import]]
+repo = "agent-lore/lithos-lens"
+src = "docs/user-manual/manual.md"
+dest = "docs/lens/manual.md"
+drop_lines_matching = ["regen-manual"]
+
+[[import]]
+repo = "agent-lore/lithos-lens"
+src_dir = "docs/user-manual/screenshots"
+pattern = "*.png"
+dest_dir = "docs/lens/screenshots"
+
+[[import]]
+repo = "agent-lore/lithos-loom"
+src_dir = "docs/cli"
+pattern = "*.md"
+dest_dir = "docs/loom/cli"
+
+[[import]]
+repo = "agent-lore/influx"
+src = "docs/operations/runbook.md"
+dest = "docs/influx/runbook.md"

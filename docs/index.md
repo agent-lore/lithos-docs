@@ -14,7 +14,10 @@ hide:
 
 Lithos is a local, privacy-first knowledge base that lets heterogeneous AI agents — Agent Zero, Claude Code, OpenClaw, LangGraph, CrewAI, and more — read, write, and coordinate through a single MCP interface. Human-readable Markdown on disk. Zero cloud. Zero lock-in.
 
+Around it, three sibling projects feed it, drive it and show it: **Influx** ingests knowledge, **Loom** turns tasks into executed work, and **Lens** is the UI over both.
+
 [Get Started →](getting-started/installation.md){ .md-button .md-button--primary }
+[The ecosystem →](ecosystem/index.md){ .md-button }
 [View on GitHub](https://github.com/agent-lore/lithos){ .md-button }
 
 </div>
@@ -174,6 +177,46 @@ Lithos is that channel. It's the **shared memory layer** your agents can actuall
 
 !!! tip "The AI Runtime"
     Think of Lithos like a software runtime for knowledge — not a static library. Notes are executable instructions. Outdated notes are bugs. Retrieval feedback adjusts each note's salience over time, and the reconcile pipeline flags stale knowledge.
+
+---
+
+## The Lithos ecosystem
+
+Lithos is the hub. The other three projects are separate repositories with their own versions and cadence, documented here under their own tabs.
+
+<div class="feature-grid" markdown>
+
+<div class="feature-card" markdown>
+<div class="icon">🪨</div>
+**[Lithos](getting-started/index.md)** · stable, v0.6.0
+
+The knowledge base and MCP server: notes, hybrid search, LCMA retrieval, the knowledge graph, and the task graph agents coordinate through.
+</div>
+
+<div class="feature-card" markdown>
+<div class="icon">🌊</div>
+**[Influx](influx/index.md)** · stable, unreleased
+
+Knowledge ingestion: arXiv and RSS sources filtered against interest profiles, LLM enrichment, archiving, and an inbox for URLs and PDFs — all written into Lithos as notes.
+</div>
+
+<div class="feature-card" markdown>
+<div class="icon">🧵</div>
+**[Loom](loom/index.md)** · pre-release
+
+Task execution: a daemon that subscribes to Lithos events, claims tasks, and dispatches coding agents through an implement → review → PR pipeline, plus an Obsidian bridge and a GitHub issue watcher.
+</div>
+
+<div class="feature-card" markdown>
+<div class="icon">🔍</div>
+**[Lens](lens/index.md)** · pre-release
+
+The web UI: a live task dashboard, dependency graphs, finding timelines, knowledge search and the knowledge graph, with a few curated write actions for an operator.
+</div>
+
+</div>
+
+See [how they fit together](ecosystem/index.md) and the [compatibility matrix](ecosystem/compatibility.md).
 
 ---
 

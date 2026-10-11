@@ -1,9 +1,10 @@
 name: Drift check
 
-# Asserts the docs site agrees with the lithos repo's generated tool catalog
-# and contains no stale markers. The weekly run is the backstop: it fails when
-# lithos main moves and the site hasn't — that failure IS the "docs are stale"
-# signal, independent of any PR activity here.
+# Asserts the docs site agrees with the lithos repo's generated tool catalog,
+# that every build-time import in sources.toml is gitignored and still exists
+# upstream, and that no stale markers appear. The weekly run is the backstop:
+# it fails when a source repo moves and the site hasn't — that failure IS the
+# "docs are stale" signal, independent of any PR activity here.
 
 on:
   pull_request:
@@ -18,5 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check docs against lithos main
+      - name: Check docs against the source repos' main
         run: python3 scripts/check_drift.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
